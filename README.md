@@ -28,6 +28,8 @@ You need python (>= 3.3) along with the `requests` library.
 
 ## Limitations and future improvments
 
+RIght now, the code is over-optimistic: we don't catch cleanly when the backend is down.
+
 A better user experience could be achieved with the use of the [curses](https://docs.python.org/3/library/curses.html) library.
 
 For now, only the `/quit` action is supported. I nened to enable the others (`/revert`, `/alter`...).
