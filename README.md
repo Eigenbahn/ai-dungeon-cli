@@ -4,7 +4,7 @@ This is basically a cli client to [play.aidungeon.io](https://play.aidungeon.io/
 
 This allows playing AI Dungeon 2 inside a terminal.
 
-I primarilly did this to play the game on a DEC VT320 hardware terminal for a more faithfull experience.
+I primarilly did this to play the game on a DEC VT320 hardware terminal for a more _faithfull_ experience.
 
 
 ## Configuration
