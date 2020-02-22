@@ -4,7 +4,9 @@ This is basically a cli client to [play.aidungeon.io](https://play.aidungeon.io/
 
 This allows playing AI Dungeon 2 inside a terminal.
 
-I primarilly did this to play the game on a DEC VT320 hardware terminal for a more _faithfull_ experience.
+I primarily did this to play the game on a DEC VT320 hardware terminal for a more _faithful_ experience.
+
+For more context, read the [accompanying blog post](https://www.eigenbahn.com/2020/02/22/ai-dungeon-cli).
 
 
 ## Configuration
@@ -13,7 +15,7 @@ You need to first login in a web browser to [play.aidungeon.io](https://play.aid
 
 You'd then need to grab the _Authentication Token_ that gets retrieved in your browser [localStorage](https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage).
 
-The easiest way for many might be to open the developper tools (`F12`), do a few actions in AI Dungeon and retrieve it from the `X-Auth-Token` _Request Header_ of the _POST inputs_ requests.
+The easiest way for many might be to open the developer tools (`F12`), do a few actions in AI Dungeon and retrieve it from the `X-Auth-Token` _Request Header_ of the _POST inputs_ requests.
 
 Then create a file `config.yml` in the same folder as `ai-dungeon-cli` with the following content:
 
@@ -26,13 +28,13 @@ auth_token: '<MY-AUTH-TOKEN>'
 You need python (>= 3.3) along with the `requests` library.
 
 
-## Limitations and future improvments
+## Limitations and future improvements
 
-RIght now, the code is over-optimistic: we don't catch cleanly when the backend is down.
+Right now, the code is over-optimistic: we don't catch cleanly when the backend is down.
 
 A better user experience could be achieved with the use of the [curses](https://docs.python.org/3/library/curses.html) library.
 
-For now, only the `/quit` action is supported. I nened to enable the others (`/revert`, `/alter`...).
+For now, only the `/quit` action is supported. I need to enable the others (`/revert`, `/alter`...).
 
 It would also be nice to add support for browsing other players' stories (_Explore_ menu).
 
