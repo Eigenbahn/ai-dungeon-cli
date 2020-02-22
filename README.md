@@ -8,6 +8,8 @@ I primarily did this to play the game on a DEC VT320 hardware terminal for a mor
 
 For more context, read the [accompanying blog post](https://www.eigenbahn.com/2020/02/22/ai-dungeon-cli).
 
+![AI DUngeon on a VT320](https://www.eigenbahn.com/assets/img/ai-dungeon-vt320.jpg)
+
 
 ## Configuration
 
