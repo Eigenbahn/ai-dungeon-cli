@@ -79,6 +79,26 @@ def diplay_spash():
 def print_sentences(text, term_width):
     print("\n".join(textwrap.wrap(text, term_width)))
 
+def choose_selection(allowed_values, prompt, term_width):
+    while True:
+        choice = input(prompt)
+        print()
+
+        choice = choice.strip()
+        if choice == '/quit':
+            return choice
+        elif choice in allowed_values.keys():
+            choice = allowed_values[choice]
+        elif choice in allowed_values.values():
+            pass
+        else:
+            print_sentences("Please enter a valid selection.", term_width)
+            print()
+            continue
+        break
+    return choice
+
+
 def make_custom_config(s, prompt, term_width):
 
     print_sentences("Enter a prompt that describes who you are and the first couple sentences of where you start out ex:  'You are a knight in the kingdom of Larion. You are hunting the evil dragon who has been terrorizing the kingdom. You enter the forest searching for the dragon and see'", term_width)
@@ -90,7 +110,6 @@ def make_custom_config(s, prompt, term_width):
     if context == '/quit':
         return selected_id
 
-
     return {
         "storyMode": 'custom',
         "characterType": None,
@@ -98,7 +117,6 @@ def make_custom_config(s, prompt, term_width):
         "customPrompt": context,
         "promptId": None,
     }
-
 
 def choose_config(s, prompt, term_width):
     r = s.get("https://api.aidungeon.io/sessions/*/config")
@@ -114,12 +132,9 @@ def choose_config(s, prompt, term_width):
         mode_select_dict[str(i)] = mode
         i += 1
     print()
-    selected_id = input(prompt)
-    print()
-    if selected_id == '/quit':
-        return selected_id
-    selected_mode = mode_select_dict[selected_id]
-
+    selected_mode = choose_selection(mode_select_dict, prompt, term_width)
+    if selected_mode == '/quit':
+        return selected_mode
     if selected_mode == 'custom':
         return make_custom_config(s, prompt, term_width)
 
@@ -133,11 +148,9 @@ def choose_config(s, prompt, term_width):
         character_select_dict[str(i)] = character
         i += 1
     print()
-    selected_id = input(prompt)
-    print()
-    if selected_id == '/quit':
-        return selected_id
-    selected_character = character_select_dict[selected_id]
+    selected_character = choose_selection(character_select_dict, prompt, term_width)
+    if selected_character == '/quit':
+        return selected_character
 
     print("Enter your character's name...")
     print()
