@@ -85,3 +85,13 @@ As you might have heard, hosting AI Dungeon costs a lot of money.
 This cli client relies on the same infrastructure as the online version ([play.aidungeon.io](https://play.aidungeon.io/)).
 
 So don't hesitate to [help support the hosting fees](https://aidungeon.io/) to keep the game up and running.
+
+
+## Author
+
+Jordan Besly ([@p3r7](https://github.com/p3r7), [blog](https://www.eigenbahn.com/)).
+
+
+## Contributors
+
+ - [@Jezza](https://github.com/Jezza)
