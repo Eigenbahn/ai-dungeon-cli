@@ -36,7 +36,7 @@ Right now, the code is over-optimistic: we don't catch cleanly when the backend 
 
 A better user experience could be achieved with the use of the [curses](https://docs.python.org/3/library/curses.html) library.
 
-For now, only the `/quit` action is supported. I need to enable the others (`/revert`, `/alter`...).
+For now, only the `/quit` and `remember` actions are supported. I need to enable the others (`/revert`, `/alter`...).
 
 It would also be nice to add support for browsing other players' stories (_Explore_ menu).
 

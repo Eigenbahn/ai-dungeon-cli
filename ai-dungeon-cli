@@ -5,7 +5,7 @@ import requests
 import textwrap
 import shutil
 import yaml
-# from pprint import pprint
+from pprint import pprint
 
 
 
@@ -182,22 +182,33 @@ def init_story(s, story_conf, term_width):
     print()
     return story_res
 
+def process_regular_action(user_input, prompt_i, term_width):
+    r = s.post("https://api.aidungeon.io/sessions/" + str(session_id) + "/inputs",
+               json={ 'text': user_input })
+    action_res = r.json()
+    action_res_str = action_res[prompt_i]['value']
+    print_sentences(action_res_str, term_width)
+    print()
+    return ['regular', action_res]
+
+def process_remember(user_input, prompt_i, term_width):
+    r = s.patch("https://api.aidungeon.io/sessions/" + str(session_id),
+               json={ 'context': user_input })
+    action_res = r.json()
+    pprint(action_res)
+    return ['/remember', action_res]
 
 def process_next_action(prompt, prompt_i, term_width):
     user_input = input(prompt)
     print()
 
     if user_input == '/quit':
-        return '/quit'
+        return ['/quit', None]
 
-    r = s.post("https://api.aidungeon.io/sessions/" + str(session_id) + "/inputs",
-               json={ 'text': user_input})
+    if user_input.startswith('/remember'):
+        return process_remember(user_input[len('/remember '):], prompt_i, term_width)
 
-    action_res = r.json()
-    action_res_str = action_res[prompt_i]['value']
-    print_sentences(action_res_str, term_width)
-    print()
-    return action_res
+    return process_regular_action(user_input, prompt_i, term_width)
 
 
 
@@ -225,9 +236,12 @@ story_res = init_story(s, story_conf, term_width)
 user_id = story_res['userId']
 session_id = story_res['id']
 public_id = story_res['publicId']
+prompt_i += 2
 
 while(do_continue):
-    prompt_i += 2
-    action_res = process_next_action(prompt, prompt_i, term_width)
-    if action_res == '/quit':
+    res = process_next_action(prompt, prompt_i, term_width)
+    action_type, action_res = res
+    if action_type == 'regular':
+        prompt_i += 2
+    if action_type == '/quit':
         do_continue = False
