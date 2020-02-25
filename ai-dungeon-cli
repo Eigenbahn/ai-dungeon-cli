@@ -20,11 +20,20 @@ except IOError:
     print("Missing config file at " + cfg_file_path)
     exit(1)
 
-if not ('auth_token' in cfg and cfg['auth_token']) :
-    print("Missing or empty 'auth_token' in config file")
-    exit(1)
+auth_token = None
+if 'auth_token' in cfg:
+    auth_token = cfg['auth_token']
 
-auth_token = cfg['auth_token']
+email = None
+if 'email' in cfg:
+    email = cfg['email']
+password = None
+if 'password' in cfg:
+    password = cfg['password']
+
+if (not auth_token) and (not email and not password) :
+    print("Missing or empty authentication configuration. Please register a token ('auth_token' key) or credentials ('email' / 'password')")
+    exit(1)
 
 prompt = '> '
 if 'prompt' in cfg and cfg['prompt']:
@@ -53,7 +62,7 @@ term_width = term_size.columns
 
 
 
-# FUNCTIONS
+# FUNCTIONS: PRINTING
 
 def clear_console():
     if os.name == 'nt':
@@ -83,6 +92,21 @@ def diplay_spash(term_width):
 def print_sentences(text, term_width):
     print("\n".join(textwrap.wrap(text, term_width)))
 
+
+
+# FUNCTIONS: AUTH
+
+def login(s, email, password):
+    r = s.post("https://api.aidungeon.io/users",
+               json={ 'email': email,
+                      'password': password })
+    resp = r.json()
+    return [r.status_code, resp]
+
+
+
+# FUNCTIONS: USER INTERACTIONS
+
 def choose_selection(allowed_values, prompt, term_width):
     while True:
         choice = input(prompt)
@@ -102,9 +126,7 @@ def choose_selection(allowed_values, prompt, term_width):
         break
     return choice
 
-
 def make_custom_config(s, prompt, term_width):
-
     print_sentences("Enter a prompt that describes who you are and the first couple sentences of where you start out ex:  'You are a knight in the kingdom of Larion. You are hunting the evil dragon who has been terrorizing the kingdom. You enter the forest searching for the dragon and see'", term_width)
     print()
 
@@ -172,7 +194,6 @@ def choose_config(s, prompt, term_width):
         "promptId": None,
     }
 
-
 def init_story(s, story_conf, term_width):
 
     print("Generating story... Please wait...")
@@ -218,19 +239,22 @@ def process_next_action(session_id, prompt, prompt_i, term_width):
 
 # MAIN
 
-clear_console()
-
-diplay_spash(term_width)
-
 s = requests.Session()
 
+if not auth_token:
+    [http_status, login_res] = login(s, email, password)
+    if http_status != requests.codes.ok:
+        print_sentences("Failed to log in using provided credentials. Check your config.", term_width)
+        exit(1)
+    auth_token = login_res['accessToken']
+
 s.headers.update({
-        # 'cookie': cookie,
         'X-Access-Token': auth_token,
     })
 
-# initial query
-# r = s.get("https://play.aidungeon.io/")
+clear_console()
+
+diplay_spash(term_width)
 
 story_conf = choose_config(s, prompt, term_width)
 if story_conf == '/quit':

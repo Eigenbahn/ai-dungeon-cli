@@ -11,19 +11,40 @@ For more context, read the [accompanying blog post](https://www.eigenbahn.com/20
 ![AI DUngeon on a VT320](https://www.eigenbahn.com/assets/img/ai-dungeon-vt320.jpg)
 
 
+## Running
+
+After cloning the repo and making a configuration file `config.yml` in the project folder, just:
+
+    $ ./ai-dungeon-cli
+
+
 ## Configuration
 
-You need to first login in a web browser to [play.aidungeon.io](https://play.aidungeon.io/).
+Then create a file `config.yml` in the same folder as script `ai-dungeon-cli`.
 
-You'd then need to grab the _Authentication Token_ that gets retrieved in your browser [localStorage](https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage).
+#### Authentication (mandatory)
 
-The easiest way for many might be to open the developer tools (`F12`), do a few actions in AI Dungeon and retrieve it from the `X-Auth-Token` _Request Header_ of the _POST inputs_ requests.
+ai-dungeon-cli supports 2 ways to configure user authentication.
 
-Then create a file `config.yml` in the same folder as `ai-dungeon-cli` with the following content:
+Either precise a couple of credentials in conf:
+
+```yaml
+email: '<MY-USER-EMAIL>'
+password: '<MY-USER-PASSWORD>'
+```
+
+Or sniff a _Authentication Token_ and use it directly:
 
 ```yaml
 auth_token: '<MY-AUTH-TOKEN>'
 ```
+
+To get this token, you need to first login in a web browser to [play.aidungeon.io](https://play.aidungeon.io/).
+
+Then you can find the token either in your browser [localStorage](https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage) or in `X-Auth-Token` _Request Header_ of the _POST inputs_ requests made while playing.
+
+Either way, developer tools (`F12`) is your friend.
+
 
 ## Dependencies
 
