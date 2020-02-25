@@ -108,7 +108,7 @@ def make_custom_config(s, prompt, term_width):
     print()
 
     if context == '/quit':
-        return selected_id
+        return context
 
     return {
         "storyMode": 'custom',
