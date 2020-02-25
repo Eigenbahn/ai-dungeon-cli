@@ -61,20 +61,24 @@ def clear_console():
     else:
         _ = os.system('clear')
 
-def diplay_spash():
+def diplay_spash(term_width):
     locale = None
     if 'LC_ALL' in os.environ:
         locale = os.environ['LC_ALL']
     if 'TERM' in os.environ:
         term = os.environ['TERM']
 
+    filename = None
     if locale == 'C' or term.startswith('vt'):
-        filename = 'opening-ascii.txt'
+        if term_width >= 80:
+            filename = 'opening-ascii.txt'
     else:
-        filename = 'opening-utf8.txt'
+        if term_width >= 80:
+            filename = 'opening-utf8.txt'
 
-    with open(filename, 'r') as f:
-        print(f.read())
+    if filename:
+        with open(filename, 'r') as f:
+            print(f.read())
 
 def print_sentences(text, term_width):
     print("\n".join(textwrap.wrap(text, term_width)))
@@ -216,7 +220,7 @@ def process_next_action(session_id, prompt, prompt_i, term_width):
 
 clear_console()
 
-diplay_spash()
+diplay_spash(term_width)
 
 s = requests.Session()
 
