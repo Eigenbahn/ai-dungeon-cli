@@ -46,6 +46,17 @@ Then you can find the token either in your browser [localStorage](https://develo
 Either way, developer tools (`F12`) is your friend.
 
 
+#### Prompt
+
+The default user prompt is `> `.
+
+You can customize it with e.g. :
+
+```yaml
+prompt: 'me: '
+```
+
+
 ## Dependencies
 
 You need python (>= 3.3) along with the `requests` library.
