@@ -20,14 +20,26 @@ class QuitSession(Exception):
 
 
 def init_configuration_file():
-    cfg_file_path = os.path.dirname(os.path.realpath(__file__)) + "/config.yml"
+    cfg_file = "/config.yml"
+    cfg_file_paths = [
+        os.path.dirname(os.path.realpath(__file__)) + cfg_file,
+        os.getenv("HOME") + "/.config/ai-dungeon-cli" + cfg_file,
+    ]
 
-    try:
-        with open(cfg_file_path, "r") as cfg_raw:
-            cfg = yaml.load(cfg_raw, Loader=yaml.FullLoader)
-    except IOError:
-        print("Missing config file at " + cfg_file_path)
-        raise FailedConfiguration
+    did_read_cfg_file = False
+
+    for file in cfg_file_paths:
+        try:
+            with open(file, 'r') as cfg_raw:
+                cfg = yaml.load(cfg_raw, Loader=yaml.FullLoader)
+                did_read_cfg_file = True
+        except IOError:
+            pass
+
+    if not did_read_cfg_file:
+        print("Missing config file at ", end="")
+        print(*cfg_file_paths, sep=", ")
+        exit(1)
 
     if not ("auth_token" in cfg and cfg["auth_token"]):
         print("Missing or empty 'auth_token' in config file")
@@ -51,6 +63,7 @@ def clear_console():
 
 
 def display_splash():
+    filename = os.path.dirname(os.path.realpath(__file__))
     locale = None
     term = None
     if "LC_ALL" in os.environ:
@@ -59,9 +72,9 @@ def display_splash():
         term = os.environ["TERM"]
 
     if locale == "C" or (term and term.startswith("vt")):
-        filename = "opening-ascii.txt"
+        filename += "/opening-ascii.txt"
     else:
-        filename = "opening-utf8.txt"
+        filename += "/opening-utf8.txt"
 
     with open(filename, "r") as splash_image:
         print(splash_image.read())
