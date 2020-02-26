@@ -8,6 +8,9 @@ import yaml
 from pprint import pprint
 
 
+# -------------------------------------------------------------------------
+# EXCEPTIONS
+
 class FailedConfiguration(Exception):
     """raise this when the yaml configuration phase failed"""
 
@@ -17,6 +20,7 @@ class QuitSession(Exception):
     """raise this when the user typed /quit in order to leave the session"""
 
 
+# -------------------------------------------------------------------------
 # CONFIG
 
 
@@ -24,8 +28,8 @@ def exists(cfg, key):
     return key in cfg and cfg[key]
 
 
+# -------------------------------------------------------------------------
 # SYSTEM FUNCTIONS
-
 
 def clear_console():
     if os.name == "nt":
@@ -294,8 +298,8 @@ class AiDungeon:
             self.process_next_action()
 
 
+# -------------------------------------------------------------------------
 # MAIN
-
 
 def main():
 
