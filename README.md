@@ -11,16 +11,39 @@ For more context, read the [accompanying blog post](https://www.eigenbahn.com/20
 ![AI DUngeon on a VT320](https://www.eigenbahn.com/assets/img/ai-dungeon-vt320.jpg)
 
 
+## Installation
+
+For now, not on PyPI.
+
+After cloning the repo:
+
+    $ python3 -m pip install .
+
+
 ## Running
 
-After cloning the repo and making a configuration file `config.yml` in the project folder, just:
+In either way, you first need to create a configuration file.
 
-    $ ./ai-dungeon-cli
+If installed with pip:
+
+    $ ai-dungeon-cli
+
+Or from source:
+
+    $ cd ai-dungeon-cli
+    $ python3 -m pip install -r requirements.txt
+    $ ./ai_dungeon_cli/__init__.py
+
+Please note that it is recommended to do it in a virtual env in order to not mess up with the main Python env on your system.
 
 
 ## Configuration
 
-Then create a file `config.yml` in the same folder as script `ai-dungeon-cli`.
+Create a file `config.yml` either:
+
+ - in the same folder in your home folder: `$HOME/.config/ai-dungeon-cli/config.yml`
+ - in as the sources: `./ai-dungeon-cli/ai_dungeon_cli/config.yml`
+
 
 #### Authentication (mandatory)
 
@@ -59,13 +82,7 @@ prompt: 'me: '
 
 ## Dependencies
 
-You need python (>= 3.3) along with the `requests` and `pyyaml` libraries.
-
-You can install the pip libraries by running the following from this project's folder:
-
-```bash
-python3 -m pip install -r requirements.txt
-```
+Please have a look at [requirements.txt](./requirements.txt).
 
 
 ## Limitations and future improvements
