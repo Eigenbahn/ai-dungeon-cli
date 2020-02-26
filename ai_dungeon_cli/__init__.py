@@ -330,6 +330,9 @@ def main():
     except QuitSession:
         ai_dungeon.print_sentences("Bye Bye!")
 
+    except KeyboardInterrupt:
+        print("Received Keyboard Interrupt. Bye Bye...")
+
     except ConnectionError:
         ai_dungeon.print_sentences("Lost connection to the Ai Dungeon servers")
 
