@@ -95,7 +95,7 @@ So don't hesitate to [help support the hosting fees](https://aidungeon.io/) to k
 
 ## Author
 
-Jordan Besly ([@p3r7](https://github.com/p3r7), [blog](https://www.eigenbahn.com/)).
+Jordan Besly [@p3r7](https://github.com/p3r7) ([blog](https://www.eigenbahn.com/)).
 
 
 ## Contributors
