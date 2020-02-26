@@ -82,7 +82,7 @@ Either way, developer tools (`F12`) is your friend.
 
 #### Prompt
 
-The default user prompt is `> `.
+The default user prompt is `'> '`.
 
 You can customize it with e.g. :
 
