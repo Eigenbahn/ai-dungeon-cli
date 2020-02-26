@@ -21,15 +21,14 @@ class QuitSession(Exception):
 
 
 # -------------------------------------------------------------------------
-# CONFIG
-
+# UTILS: DICT
 
 def exists(cfg, key):
     return key in cfg and cfg[key]
 
 
 # -------------------------------------------------------------------------
-# SYSTEM FUNCTIONS
+# UTILS: TERMINAL
 
 def clear_console():
     if os.name == "nt":
@@ -55,6 +54,9 @@ def display_splash():
     with open(filename, "r") as splash_image:
         print(splash_image.read())
 
+
+# -------------------------------------------------------------------------
+# GAME LOGIC
 
 class AiDungeon:
     def __init__(self):
