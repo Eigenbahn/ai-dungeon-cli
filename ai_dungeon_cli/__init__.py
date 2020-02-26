@@ -283,7 +283,6 @@ class AiDungeon:
             "https://api.aidungeon.io/sessions/" + str(self.session_id),
             json={"context": user_input},
         ).json()
-        pprint(action_res)
 
     # Function that is called each iteration to process user inputs
     def process_next_action(self):
