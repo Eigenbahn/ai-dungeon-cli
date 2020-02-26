@@ -7,6 +7,10 @@ import shutil
 import yaml
 
 
+class FailedConfiguration(Exception):
+    """raise this when the yaml configuration phase failed"""
+
+
 # Quit Session exception for easier error and exiting handling
 class QuitSession(Exception):
     """raise this when the user typed /quit in order to leave the session"""
@@ -23,19 +27,17 @@ def init_configuration_file():
             cfg = yaml.load(cfg_raw, Loader=yaml.FullLoader)
     except IOError:
         print("Missing config file at " + cfg_file_path)
-        exit(1)
+        raise FailedConfiguration
 
     if not ("auth_token" in cfg and cfg["auth_token"]):
         print("Missing or empty 'auth_token' in config file")
-        exit(1)
-
-    auth_token = cfg["auth_token"]
+        raise FailedConfiguration
 
     prompt = "> "
     if "prompt" in cfg and cfg["prompt"]:
         prompt = cfg["prompt"]
 
-    return auth_token, prompt
+    return cfg["auth_token"], prompt
 
 
 # SYSTEM FUNCTIONS
@@ -224,24 +226,31 @@ class AiDungeon:
 
 # MAIN
 if __name__ == "__main__":
-    # Loads the yaml configuration file
-    auth_token, prompt = init_configuration_file()
-
-    # Clears the console
-    clear_console()
-
-    # Displays the splash image accordingly
-    display_splash()
-
-    # Initialize the AiDungeon class with the given auth_token and prompt
-    current_run = AiDungeon(auth_token, prompt)
 
     try:
+        # Loads the yaml configuration file
+        auth_token, prompt = init_configuration_file()
+
+        # Clears the console
+        clear_console()
+
+        # Displays the splash image accordingly
+        display_splash()
+
+        # Initialize the AiDungeon class with the given auth_token and prompt
+        current_run = AiDungeon(auth_token, prompt)
+
+        # Loads the current session configuration
         current_run.choose_config()
 
+        # Initializes the story
         current_run.init_story()
 
+        # Starts the game
         current_run.start_game()
+
+    except FailedConfiguration:
+        exit(1)
 
     except QuitSession:
         current_run.print_sentences("Bye Bye!")
