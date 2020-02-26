@@ -13,11 +13,22 @@ For more context, read the [accompanying blog post](https://www.eigenbahn.com/20
 
 ## Installation
 
+#### pip
+
 For now, not on PyPI.
 
 After cloning the repo:
 
     $ python3 -m pip install .
+
+
+#### Arch Linux
+
+Package is on [AUR](https://aur.archlinux.org/packages/ai-dungeon-cli-git/).
+
+    $ git clone https://aur.archlinux.org/ai-dungeon-cli-git.git
+    $ cd ai-dungeon-cli-git
+    $ makepkg -si
 
 
 ## Running
