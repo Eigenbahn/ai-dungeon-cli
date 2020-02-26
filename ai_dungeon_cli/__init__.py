@@ -225,7 +225,8 @@ class AiDungeon:
 
 
 # MAIN
-if __name__ == "__main__":
+
+def main():
 
     try:
         # Loads the yaml configuration file
@@ -257,3 +258,7 @@ if __name__ == "__main__":
 
     except ConnectionError:
         current_run.print_sentences("Lost connection to the Ai Dungeon servers")
+
+
+if __name__ == "__main__":
+    main()
