@@ -101,3 +101,4 @@ Jordan Besly ([@p3r7](https://github.com/p3r7), [blog](https://www.eigenbahn.com
 ## Contributors
 
  - [@Jezza](https://github.com/Jezza)
+ - Robert Davis [@bdavs](https://github.com/bdavs)
