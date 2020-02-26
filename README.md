@@ -128,5 +128,10 @@ Jordan Besly [@p3r7](https://github.com/p3r7) ([blog](https://www.eigenbahn.com/
 
 ## Contributors
 
- - [@Jezza](https://github.com/Jezza)
- - Robert Davis [@bdavs](https://github.com/bdavs)
+ Major contributions:
+ - Idan Gur [@idangur](https://github.com/idangur): OOP rewrite of game logic
+ - Alberto Oporto Ames [@otreblan](https://github.com/otreblan): packaging, submission to AUR
+
+ Minor contributions:
+ - Robert Davis [@bdavs](https://github.com/bdavs): pip requirements
+ - [@Jezza](https://github.com/Jezza): suggested login using creds
