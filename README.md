@@ -59,7 +59,13 @@ prompt: 'me: '
 
 ## Dependencies
 
-You need python (>= 3.3) along with the `requests` library.
+You need python (>= 3.3) along with the `requests` and `pyyaml` libraries.
+
+You can install the pip libraries by running the following from this project's folder:
+
+```bash
+python3 -m pip install -r requirements.txt
+```
 
 
 ## Limitations and future improvements
