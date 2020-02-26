@@ -114,10 +114,12 @@ class AiDungeon:
 
         if exists(cfg, "prompt"):
             self.prompt = cfg["prompt"]
-
-        self.auth_token = cfg["auth_token"]
-        self.email = cfg["email"]
-        self.password = cfg["password"]
+        if exists(cfg, "auth_token"):
+            self.auth_token = cfg["auth_token"]
+        if exists(cfg, "email"):
+            self.email = cfg["email"]
+        if exists(cfg, "password"):
+            self.password = cfg["password"]
 
     def get_auth_token(self):
         return self.auth_token
