@@ -77,17 +77,16 @@ class AiDungeon:
         self.session = requests.Session()
 
         # Start class configuration
-        self.init_configuration_file()
+        self.load_configuration_file()
 
     def update_session_auth(self):
         self.session.headers.update(
             {
-                # 'cookie': cookie,
                 "X-Access-Token": self.auth_token,
             }
         )
 
-    def init_configuration_file(self):
+    def load_configuration_file(self):
         cfg_file = "/config.yml"
         cfg_file_paths = [
             os.path.dirname(os.path.realpath(__file__)) + cfg_file,
