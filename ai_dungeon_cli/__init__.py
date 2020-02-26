@@ -5,6 +5,7 @@ import requests
 import textwrap
 import shutil
 import yaml
+from pprint import pprint
 
 
 class FailedConfiguration(Exception):
@@ -19,37 +20,8 @@ class QuitSession(Exception):
 # CONFIG
 
 
-def init_configuration_file():
-    cfg_file = "/config.yml"
-    cfg_file_paths = [
-        os.path.dirname(os.path.realpath(__file__)) + cfg_file,
-        os.getenv("HOME") + "/.config/ai-dungeon-cli" + cfg_file,
-    ]
-
-    did_read_cfg_file = False
-
-    for file in cfg_file_paths:
-        try:
-            with open(file, 'r') as cfg_raw:
-                cfg = yaml.load(cfg_raw, Loader=yaml.FullLoader)
-                did_read_cfg_file = True
-        except IOError:
-            pass
-
-    if not did_read_cfg_file:
-        print("Missing config file at ", end="")
-        print(*cfg_file_paths, sep=", ")
-        exit(1)
-
-    if not ("auth_token" in cfg and cfg["auth_token"]):
-        print("Missing or empty 'auth_token' in config file")
-        raise FailedConfiguration
-
-    prompt = "> "
-    if "prompt" in cfg and cfg["prompt"]:
-        prompt = cfg["prompt"]
-
-    return cfg["auth_token"], prompt
+def exists(cfg, key):
+    return key in cfg and cfg[key]
 
 
 # SYSTEM FUNCTIONS
@@ -81,26 +53,93 @@ def display_splash():
 
 
 class AiDungeon:
-    def __init__(self, auth_token, prompt):
+    def __init__(self):
         self.terminal_size = shutil.get_terminal_size((80, 20))
         self.terminal_width = self.terminal_size.columns
-        self.prompt = prompt
-        self.prompt_iteration = 0
+
+        # Variables initialization
+        self.prompt = "> "
+        self.auth_token = None
+        self.email = None
+        self.password = None
+        self.prompt_iteration = 2
         self.stop_session = False
         self.user_id = None
         self.session_id = None
         self.public_id = None
         self.story_configuration = {}
         self.session = requests.Session()
+
+        # Start class configuration
+        self.init_configuration_file()
+
+    def update_session_auth(self):
         self.session.headers.update(
             {
                 # 'cookie': cookie,
-                "X-Access-Token": auth_token,
+                "X-Access-Token": self.auth_token,
             }
         )
 
+    def init_configuration_file(self):
+        cfg_file = "/config.yml"
+        cfg_file_paths = [
+            os.path.dirname(os.path.realpath(__file__)) + cfg_file,
+            os.getenv("HOME") + "/.config/ai-dungeon-cli" + cfg_file,
+        ]
+
+        did_read_cfg_file = False
+
+        for file in cfg_file_paths:
+            try:
+                with open(file, "r") as cfg_raw:
+                    cfg = yaml.load(cfg_raw, Loader=yaml.FullLoader)
+                    did_read_cfg_file = True
+            except IOError:
+                pass
+
+        if not did_read_cfg_file:
+            print("Missing config file at ", end="")
+            print(*cfg_file_paths, sep=", ")
+            raise FailedConfiguration
+
+        if (not exists(cfg, "auth_token")) and (
+            not (exists(cfg, "email")) and not (exists(cfg, "password"))
+        ):
+            self.print_sentences(
+                "Missing or empty authentication configuration. "
+                "Please register a token ('auth_token' key) or credentials ('email' / 'password')"
+            )
+            raise FailedConfiguration
+
+        if exists(cfg, "prompt"):
+            self.prompt = cfg["prompt"]
+
+        self.auth_token = cfg["auth_token"]
+        self.email = cfg["email"]
+        self.password = cfg["password"]
+
+    def get_auth_token(self):
+        return self.auth_token
+
     def print_sentences(self, text):
         print("\n".join(textwrap.wrap(text, self.terminal_width)))
+
+    def login(self):
+        request = self.session.post(
+            "https://api.aidungeon.io/users",
+            json={"email": email, "password": password},
+        )
+
+        if request.status_code != requests.codes.ok:
+            self.print_sentences(
+                "Failed to log in using provided credentials. Check your config."
+            )
+            raise FailedConfiguration
+
+        self.auth_token = request.json()["accessToken"]
+
+        self.update_session_auth()
 
     def choose_selection(self, allowed_values):
         while True:
@@ -165,40 +204,40 @@ class AiDungeon:
         # If the custom option was selected load the custom configuration and don't continue this configuration
         if selected_mode == "custom":
             self.make_custom_config()
-            return
 
-        print("Select a character...\n")
+        else:
+            print("Select a character...\n")
 
-        character_select_dict = {}
-        for i, (character, opts) in enumerate(
-            response["modes"][selected_mode]["characters"].items(), start=1
-        ):
-            print(str(i) + ") " + character)
-            character_select_dict[str(i)] = character
-        print()
-        selected_character = self.choose_selection(character_select_dict)
+            character_select_dict = {}
+            for i, (character, opts) in enumerate(
+                response["modes"][selected_mode]["characters"].items(), start=1
+            ):
+                print(str(i) + ") " + character)
+                character_select_dict[str(i)] = character
+            print()
+            selected_character = self.choose_selection(character_select_dict)
 
-        if selected_character == "/quit":
-            raise QuitSession("/quit")
+            if selected_character == "/quit":
+                raise QuitSession("/quit")
 
-        print("Enter your character's name...\n")
+            print("Enter your character's name...\n")
 
-        character_name = input(self.prompt)
-        print()
+            character_name = input(self.prompt)
+            print()
 
-        if character_name == "/quit":
-            raise QuitSession("/quit")
+            if character_name == "/quit":
+                raise QuitSession("/quit")
 
-        self.story_configuration = {
-            "storyMode": selected_mode,
-            "characterType": selected_character,
-            "name": character_name,
-            "customPrompt": None,
-            "promptId": None,
-        }
+            self.story_configuration = {
+                "storyMode": selected_mode,
+                "characterType": selected_character,
+                "name": character_name,
+                "customPrompt": None,
+                "promptId": None,
+            }
 
+    # Initialize story
     def init_story(self):
-
         print("Generating story... Please wait...\n")
 
         story_response = self.session.post(
@@ -214,6 +253,25 @@ class AiDungeon:
         self.print_sentences(story_pitch)
         print()
 
+    # Function for when the input typed was ordinary
+    def process_regular_action(self, user_input):
+        action_res = self.session.post(
+            "https://api.aidungeon.io/sessions/" + str(self.session_id) + "/inputs",
+            json={"text": user_input},
+        ).json()
+        action_res_str = action_res[self.prompt_iteration]["value"]
+        self.print_sentences(action_res_str)
+        print()
+
+    # Function for when /remember is typed
+    def process_remember_action(self, user_input):
+        action_res = self.session.patch(
+            "https://api.aidungeon.io/sessions/" + str(self.session_id),
+            json={"context": user_input},
+        ).json()
+        pprint(action_res)
+
+    # Function that is called each iteration to process user inputs
     def process_next_action(self):
         user_input = input(self.prompt)
         print()
@@ -221,56 +279,59 @@ class AiDungeon:
         if user_input == "/quit":
             self.stop_session = True
 
-        action_res = self.session.post(
-            "https://api.aidungeon.io/sessions/" + str(self.session_id) + "/inputs",
-            json={"text": user_input},
-        ).json()
-
-        action_res_str = action_res[self.prompt_iteration]["value"]
-        self.print_sentences(action_res_str)
-        print()
+        else:
+            if user_input.startswith("/remember"):
+                self.process_remember_action(user_input[len("/remember ") :])
+            else:
+                self.process_regular_action(user_input)
+                self.prompt_iteration += 2
 
     def start_game(self):
         # Run until /quit is received inside the process_next_action func
         while not self.stop_session:
-            self.prompt_iteration += 2
             self.process_next_action()
 
 
 # MAIN
 
+
 def main():
 
     try:
-        # Loads the yaml configuration file
-        auth_token, prompt = init_configuration_file()
+        # Initialize the AiDungeon class with the given auth_token and prompt
+        ai_dungeon = AiDungeon()
+
+        # Login if necessary
+        if not ai_dungeon.get_auth_token():
+            ai_dungeon.login()
+
+        # Update the session authentication token
+        ai_dungeon.update_session_auth()
 
         # Clears the console
         clear_console()
 
         # Displays the splash image accordingly
-        display_splash()
-
-        # Initialize the AiDungeon class with the given auth_token and prompt
-        current_run = AiDungeon(auth_token, prompt)
+        if ai_dungeon.terminal_width >= 80:
+            display_splash()
 
         # Loads the current session configuration
-        current_run.choose_config()
+        ai_dungeon.choose_config()
 
         # Initializes the story
-        current_run.init_story()
+        ai_dungeon.init_story()
 
         # Starts the game
-        current_run.start_game()
+        ai_dungeon.start_game()
 
     except FailedConfiguration:
         exit(1)
 
     except QuitSession:
-        current_run.print_sentences("Bye Bye!")
+        ai_dungeon.print_sentences("Bye Bye!")
 
     except ConnectionError:
-        current_run.print_sentences("Lost connection to the Ai Dungeon servers")
+        ai_dungeon.print_sentences("Lost connection to the Ai Dungeon servers")
 
 
 if __name__ == "__main__":
