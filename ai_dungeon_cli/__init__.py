@@ -134,7 +134,7 @@ class AiDungeon:
     def login(self):
         request = self.session.post(
             "https://api.aidungeon.io/users",
-            json={"email": email, "password": password},
+            json={"email": self.email, "password": self.password},
         )
 
         if request.status_code != requests.codes.ok:
