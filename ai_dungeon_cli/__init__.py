@@ -6,6 +6,11 @@ import textwrap
 import shutil
 import yaml
 
+try:
+    import readline
+except ImportError:
+    import pyreadline as readline
+
 # from pprint import pprint
 
 
@@ -58,7 +63,7 @@ def display_splash():
     else:
         filename += "/opening-utf8.txt"
 
-    with open(filename, "r") as splash_image:
+    with open(filename, "r", encoding="utf8") as splash_image:
         print(splash_image.read())
 
 
@@ -96,7 +101,7 @@ class AiDungeon:
         cfg_file = "/config.yml"
         cfg_file_paths = [
             os.path.dirname(os.path.realpath(__file__)) + cfg_file,
-            os.getenv("HOME") + "/.config/ai-dungeon-cli" + cfg_file,
+            os.path.expanduser("~") + "/.config/ai-dungeon-cli" + cfg_file,
         ]
 
         did_read_cfg_file = False
@@ -279,7 +284,7 @@ class AiDungeon:
 
     # Function that is called each iteration to process user inputs
     def process_next_action(self):
-        user_input = input(self.prompt)
+        user_input = readline.get_line_buffer
         print()
 
         if user_input == "/quit":
