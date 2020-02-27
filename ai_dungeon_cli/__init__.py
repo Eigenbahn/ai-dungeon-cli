@@ -149,8 +149,6 @@ class AiDungeon:
 
         self.auth_token = request.json()["accessToken"]
 
-        self.update_session_auth()
-
     def choose_selection(self, allowed_values):
         while True:
             choice = input(self.prompt)
