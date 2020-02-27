@@ -6,6 +6,7 @@ import textwrap
 import shutil
 import yaml
 
+# This changes the builtin input()
 try:
     import readline
 except ImportError:
@@ -284,7 +285,7 @@ class AiDungeon:
 
     # Function that is called each iteration to process user inputs
     def process_next_action(self):
-        user_input = readline.get_line_buffer
+        user_input = input(self.prompt)
         print()
 
         if user_input == "/quit":
