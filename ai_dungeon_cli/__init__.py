@@ -8,6 +8,9 @@ import yaml
 from pprint import pprint
 
 
+# -------------------------------------------------------------------------
+# EXCEPTIONS
+
 class FailedConfiguration(Exception):
     """raise this when the yaml configuration phase failed"""
 
@@ -17,15 +20,15 @@ class QuitSession(Exception):
     """raise this when the user typed /quit in order to leave the session"""
 
 
-# CONFIG
-
+# -------------------------------------------------------------------------
+# UTILS: DICT
 
 def exists(cfg, key):
     return key in cfg and cfg[key]
 
 
-# SYSTEM FUNCTIONS
-
+# -------------------------------------------------------------------------
+# UTILS: TERMINAL
 
 def clear_console():
     if os.name == "nt":
@@ -52,6 +55,13 @@ def display_splash():
         print(splash_image.read())
 
 
+def print_sentences(text, term_width):
+    print("\n".join(textwrap.wrap(text, term_width)))
+
+
+# -------------------------------------------------------------------------
+# GAME LOGIC
+
 class AiDungeon:
     def __init__(self):
         self.terminal_size = shutil.get_terminal_size((80, 20))
@@ -71,17 +81,16 @@ class AiDungeon:
         self.session = requests.Session()
 
         # Start class configuration
-        self.init_configuration_file()
+        self.load_configuration_file()
 
     def update_session_auth(self):
         self.session.headers.update(
             {
-                # 'cookie': cookie,
                 "X-Access-Token": self.auth_token,
             }
         )
 
-    def init_configuration_file(self):
+    def load_configuration_file(self):
         cfg_file = "/config.yml"
         cfg_file_paths = [
             os.path.dirname(os.path.realpath(__file__)) + cfg_file,
@@ -106,9 +115,10 @@ class AiDungeon:
         if (not exists(cfg, "auth_token")) and (
             not (exists(cfg, "email")) and not (exists(cfg, "password"))
         ):
-            self.print_sentences(
+            print_sentences(
                 "Missing or empty authentication configuration. "
-                "Please register a token ('auth_token' key) or credentials ('email' / 'password')"
+                "Please register a token ('auth_token' key) or credentials ('email' / 'password')",
+                self.terminal_width
             )
             raise FailedConfiguration
 
@@ -124,18 +134,19 @@ class AiDungeon:
     def get_auth_token(self):
         return self.auth_token
 
-    def print_sentences(self, text):
-        print("\n".join(textwrap.wrap(text, self.terminal_width)))
+    def get_terminal_width(self):
+        return self.terminal_width
 
     def login(self):
         request = self.session.post(
             "https://api.aidungeon.io/users",
-            json={"email": email, "password": password},
+            json={"email": self.email, "password": self.password},
         )
 
         if request.status_code != requests.codes.ok:
-            self.print_sentences(
-                "Failed to log in using provided credentials. Check your config."
+            print_sentences(
+                "Failed to log in using provided credentials. Check your config.",
+                self.terminal_width
             )
             raise FailedConfiguration
 
@@ -158,18 +169,19 @@ class AiDungeon:
             elif choice in allowed_values.values():
                 pass
             else:
-                self.print_sentences("Please enter a valid selection.")
+                print_sentences("Please enter a valid selection.", self.terminal_width)
                 print()
                 continue
             break
         return choice
 
-    def make_custom_config(self):
 
-        self.print_sentences(
+    def make_custom_config(self):
+        print_sentences(
             "Enter a prompt that describes who you are and the first couple sentences of where you start out ex: "
             "'You are a knight in the kingdom of Larion. You are hunting the evil dragon who has been terrorizing "
-            "the kingdom. You enter the forest searching for the dragon and see'"
+            "the kingdom. You enter the forest searching for the dragon and see'",
+            self.terminal_width
         )
         print()
 
@@ -252,7 +264,7 @@ class AiDungeon:
 
         story_pitch = story_response["story"][0]["value"]
 
-        self.print_sentences(story_pitch)
+        print_sentences(story_pitch, self.terminal_width)
         print()
 
     # Function for when the input typed was ordinary
@@ -262,7 +274,7 @@ class AiDungeon:
             json={"text": user_input},
         ).json()
         action_res_str = action_res[self.prompt_iteration]["value"]
-        self.print_sentences(action_res_str)
+        print_sentences(action_res_str, self.terminal_width)
         print()
 
     # Function for when /remember is typed
@@ -271,7 +283,6 @@ class AiDungeon:
             "https://api.aidungeon.io/sessions/" + str(self.session_id),
             json={"context": user_input},
         ).json()
-        pprint(action_res)
 
     # Function that is called each iteration to process user inputs
     def process_next_action(self):
@@ -294,8 +305,8 @@ class AiDungeon:
             self.process_next_action()
 
 
+# -------------------------------------------------------------------------
 # MAIN
-
 
 def main():
 
@@ -330,13 +341,15 @@ def main():
         exit(1)
 
     except QuitSession:
-        ai_dungeon.print_sentences("Bye Bye!")
+        print_sentences("Bye Bye!", ai_dungeon.get_terminal_width())
 
     except KeyboardInterrupt:
-        print("Received Keyboard Interrupt. Bye Bye...")
+        print_sentences("Received Keyboard Interrupt. Bye Bye...",
+                        ai_dungeon.get_terminal_width())
 
     except ConnectionError:
-        ai_dungeon.print_sentences("Lost connection to the Ai Dungeon servers")
+        print_sentences("Lost connection to the Ai Dungeon servers",
+                        ai_dungeon.get_terminal_width())
 
 
 if __name__ == "__main__":
