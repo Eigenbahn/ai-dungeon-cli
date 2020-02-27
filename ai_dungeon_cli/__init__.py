@@ -5,6 +5,7 @@ import requests
 import textwrap
 import shutil
 import yaml
+import readline
 
 # from pprint import pprint
 
@@ -279,7 +280,7 @@ class AiDungeon:
 
     # Function that is called each iteration to process user inputs
     def process_next_action(self):
-        user_input = input(self.prompt)
+        user_input = readline.get_line_buffer
         print()
 
         if user_input == "/quit":
