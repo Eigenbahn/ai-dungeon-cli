@@ -20,7 +20,10 @@ setuptools.setup(
     install_requires=[
         "requests>=2.23.0",
         "PyYAML>=5.1.2",
+        "pyreadline >= 2.1;platform_system=='Windows'"
     ],
+
+
     entry_points={
         "console_scripts": [
             "ai-dungeon-cli = ai_dungeon_cli.__init__:main",
