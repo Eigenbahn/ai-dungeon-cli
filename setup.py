@@ -18,8 +18,8 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
     ],
     install_requires=[
-        "requests==2.23.0",
-        "PyYAML==5.1.2",
+        "requests>=2.23.0",
+        "PyYAML>=5.1.2",
     ],
     entry_points={
         "console_scripts": [
