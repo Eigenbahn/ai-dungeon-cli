@@ -53,7 +53,7 @@ Please note that it is recommended to do it in a virtual env in order to not mes
 Create a file `config.yml` either:
 
  - in the same folder in your home folder: `$HOME/.config/ai-dungeon-cli/config.yml`
- - in as the sources: `./ai-dungeon-cli/ai_dungeon_cli/config.yml`
+ - in the same folder as the sources: `./ai-dungeon-cli/ai_dungeon_cli/config.yml`
 
 
 #### Authentication (mandatory)
