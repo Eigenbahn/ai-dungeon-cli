@@ -84,7 +84,7 @@ class AiDungeon:
         self.auth_token = None
         self.email = None
         self.password = None
-        self.prompt_iteration = 2
+        self.prompt_iteration = None
         self.stop_session = False
         self.user_id = None
         self.session_id = None
@@ -257,6 +257,7 @@ class AiDungeon:
             "https://api.aidungeon.io/sessions", json=self.story_configuration
         ).json()
 
+        self.prompt_iteration = 2
         self.user_id = story_response["userId"]
         self.session_id = story_response["id"]
         self.public_id = story_response["publicId"]
