@@ -1,0 +1,8 @@
+name: ai-dungeon-cli-env
+dependencies:
+- python=3
+- pip
+- requests=2.*
+- PyYAML=5.*
+- pip:
+    - pyreadline >= 2.1;platform_system=='Windows'
