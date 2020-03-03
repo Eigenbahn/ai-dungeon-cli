@@ -6,6 +6,8 @@ import textwrap
 import shutil
 import yaml
 
+from typing import Callable, Dict
+
 # This changes the builtin input()
 try:
     import readline
@@ -30,7 +32,7 @@ class QuitSession(Exception):
 # -------------------------------------------------------------------------
 # UTILS: DICT
 
-def exists(cfg, key):
+def exists(cfg: Dict[str, str], key: str) -> str:
     return key in cfg and cfg[key]
 
 
@@ -65,22 +67,27 @@ def display_splash():
     with open(filename, "r", encoding="utf8") as splash_image:
         print(splash_image.read())
 
-def set_input_handler(method):
+
+def set_input_handler(method: Callable[[str], str]):
     global input_handler
     input_handler = method
 
-def set_print_handler(method):
+
+def set_print_handler(method: Callable[[str], None]):
     global print_handler
     print_handler = method
 
-def get_user_input_term(prompt=''):
+
+def get_user_input_term(prompt: str = '') -> str:
     user_input = input(prompt)
     print()
     return user_input
 
-def print_output_term(text):
+
+def print_output_term(text: str):
     print("\n".join(textwrap.wrap(text, terminal_width)))
     print()
+
 
 input_handler = get_user_input_term
 print_handler = print_output_term
@@ -93,17 +100,17 @@ class AiDungeon:
     def __init__(self):
 
         # Variables initialization
-        self.prompt = "> "
-        self.auth_token = None
-        self.email = None
-        self.password = None
-        self.prompt_iteration = None
-        self.stop_session = False
-        self.user_id = None
-        self.session_id = None
-        self.public_id = None
-        self.story_configuration = {}
-        self.session = requests.Session()
+        self.prompt: str = "> "
+        self.auth_token: str = None
+        self.email: str = None
+        self.password: str = None
+        self.prompt_iteration: int = None
+        self.stop_session: bool = False
+        self.user_id: str = None
+        self.session_id: str = None
+        self.public_id: str = None
+        self.story_configuration: Dict[str, str] = {}
+        self.session: requests.Session = requests.Session()
 
         # Start class configuration
         self.load_configuration_file()
@@ -151,7 +158,7 @@ class AiDungeon:
         if exists(cfg, "password"):
             self.password = cfg["password"]
 
-    def get_auth_token(self):
+    def get_auth_token(self) -> str:
         return self.auth_token
 
     def login(self):
@@ -168,7 +175,7 @@ class AiDungeon:
 
         self.auth_token = request.json()["accessToken"]
 
-    def choose_selection(self, allowed_values):
+    def choose_selection(self, allowed_values: Dict[str, str]) -> str:
         while True:
             choice = input_handler(self.prompt)
 
@@ -273,7 +280,7 @@ class AiDungeon:
         print_handler(story_pitch)
 
     # Function for when the input typed was ordinary
-    def process_regular_action(self, user_input):
+    def process_regular_action(self, user_input: str):
         action_res = self.session.post(
             "https://api.aidungeon.io/sessions/" + str(self.session_id) + "/inputs",
             json={"text": user_input},
@@ -282,7 +289,7 @@ class AiDungeon:
         print_handler(action_res_str)
 
     # Function for when /remember is typed
-    def process_remember_action(self, user_input):
+    def process_remember_action(self, user_input: str):
         self.session.patch(
             "https://api.aidungeon.io/sessions/" + str(self.session_id),
             json={"context": user_input},
