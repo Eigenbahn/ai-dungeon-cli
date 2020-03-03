@@ -67,10 +67,25 @@ def display_splash():
     with open(filename, "r", encoding="utf8") as splash_image:
         print(splash_image.read())
 
+def set_input_handler(method):
+    global input_handler
+    input_handler = method
 
-def print_sentences(text):
+def set_print_handler(method):
+    global print_handler
+    print_handler = method
+
+def user_input_handler(prompt=''):
+    user_input = input(prompt)
+    print()
+    return user_input
+
+def user_print_handler(text):
     print("\n".join(textwrap.wrap(text, terminal_width)))
+    print()
 
+input_handler = user_input_handler
+print_handler = user_print_handler
 
 # -------------------------------------------------------------------------
 # GAME LOGIC
@@ -123,7 +138,7 @@ class AiDungeon:
         if (not exists(cfg, "auth_token")) and (
             not (exists(cfg, "email")) and not (exists(cfg, "password"))
         ):
-            print_sentences(
+            print_handler(
                 "Missing or empty authentication configuration. "
                 "Please register a token ('auth_token' key) or credentials ('email' / 'password')"
             )
@@ -148,7 +163,7 @@ class AiDungeon:
         )
 
         if request.status_code != requests.codes.ok:
-            print_sentences(
+            print_handler(
                 "Failed to log in using provided credentials. Check your config."
             )
             raise FailedConfiguration
@@ -157,8 +172,7 @@ class AiDungeon:
 
     def choose_selection(self, allowed_values):
         while True:
-            choice = input(self.prompt)
-            print()
+            choice = input_handler(self.prompt)
 
             choice = choice.strip()
 
@@ -170,22 +184,19 @@ class AiDungeon:
             elif choice in allowed_values.values():
                 pass
             else:
-                print_sentences("Please enter a valid selection.")
-                print()
+                print_handler("Please enter a valid selection.")
                 continue
             break
         return choice
 
     def make_custom_config(self):
-        print_sentences(
+        print_handler(
             "Enter a prompt that describes who you are and the first couple sentences of where you start out ex: "
             "'You are a knight in the kingdom of Larion. You are hunting the evil dragon who has been terrorizing "
             "the kingdom. You enter the forest searching for the dragon and see'"
         )
-        print()
 
-        context = input(self.prompt)
-        print()
+        context = input_handler(self.prompt)
 
         if context == "/quit":
             raise QuitSession("/quit")
@@ -208,7 +219,6 @@ class AiDungeon:
         for i, (mode, opts) in enumerate(response["modes"].items(), start=1):
             print(str(i) + ") " + mode)
             mode_select_dict[str(i)] = mode
-        print()
         selected_mode = self.choose_selection(mode_select_dict)
 
         if selected_mode == "/quit":
@@ -227,7 +237,6 @@ class AiDungeon:
             ):
                 print(str(i) + ") " + character)
                 character_select_dict[str(i)] = character
-            print()
             selected_character = self.choose_selection(character_select_dict)
 
             if selected_character == "/quit":
@@ -235,8 +244,7 @@ class AiDungeon:
 
             print("Enter your character's name...\n")
 
-            character_name = input(self.prompt)
-            print()
+            character_name = input_handler(self.prompt)
 
             if character_name == "/quit":
                 raise QuitSession("/quit")
@@ -264,8 +272,7 @@ class AiDungeon:
 
         story_pitch = story_response["story"][0]["value"]
 
-        print_sentences(story_pitch)
-        print()
+        print_handler(story_pitch)
 
     # Function for when the input typed was ordinary
     def process_regular_action(self, user_input):
@@ -274,8 +281,7 @@ class AiDungeon:
             json={"text": user_input},
         ).json()
         action_res_str = action_res[self.prompt_iteration]["value"]
-        print_sentences(action_res_str)
-        print()
+        print_handler(action_res_str)
 
     # Function for when /remember is typed
     def process_remember_action(self, user_input):
@@ -286,8 +292,7 @@ class AiDungeon:
 
     # Function that is called each iteration to process user inputs
     def process_next_action(self):
-        user_input = input(self.prompt)
-        print()
+        user_input = input_handler(self.prompt)
 
         if user_input == "/quit":
             self.stop_session = True
@@ -342,13 +347,13 @@ def main():
         exit(1)
 
     except QuitSession:
-        print_sentences("Bye Bye!")
+        print_handler("Bye Bye!")
 
     except KeyboardInterrupt:
-        print_sentences("Received Keyboard Interrupt. Bye Bye...")
+        print_handler("Received Keyboard Interrupt. Bye Bye...")
 
     except ConnectionError:
-        print_sentences("Lost connection to the Ai Dungeon servers")
+        print_handler("Lost connection to the Ai Dungeon servers")
 
 
 if __name__ == "__main__":
