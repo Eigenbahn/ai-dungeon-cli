@@ -18,7 +18,6 @@ except ImportError:
 # -------------------------------------------------------------------------
 # EXCEPTIONS
 
-
 class FailedConfiguration(Exception):
     """raise this when the yaml configuration phase failed"""
 
@@ -30,7 +29,6 @@ class QuitSession(Exception):
 
 # -------------------------------------------------------------------------
 # UTILS: DICT
-
 
 def exists(cfg, key):
     return key in cfg and cfg[key]
@@ -75,21 +73,21 @@ def set_print_handler(method):
     global print_handler
     print_handler = method
 
-def user_input_handler(prompt=''):
+def get_user_input_term(prompt=''):
     user_input = input(prompt)
     print()
     return user_input
 
-def user_print_handler(text):
+def print_output_term(text):
     print("\n".join(textwrap.wrap(text, terminal_width)))
     print()
 
-input_handler = user_input_handler
-print_handler = user_print_handler
+input_handler = get_user_input_term
+print_handler = print_output_term
+
 
 # -------------------------------------------------------------------------
 # GAME LOGIC
-
 
 class AiDungeon:
     def __init__(self):
@@ -312,7 +310,6 @@ class AiDungeon:
 
 # -------------------------------------------------------------------------
 # MAIN
-
 
 def main():
 
