@@ -15,7 +15,7 @@ For more context, read the [accompanying blog post](https://www.eigenbahn.com/20
 
 #### pip
 
-[![PyPI version fury.io](https://badge.fury.io/py/ansicolortags.svg)](https://pypi.python.org/project/ai-dungeon-cli/)
+[![PyPI version fury.io](https://badge.fury.io/py/ai-dungeon-cli.svg)](https://pypi.python.org/project/ai-dungeon-cli/)
 
     $ python3 -m pip install ai-dungeon-cli
 
