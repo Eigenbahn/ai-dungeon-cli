@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="ai-dungeon-cli",
-    version="0.0.0",
+    version="0.1.2",
     author="Jordan Besly",
     author_email="",
     description="Play ai dungeon from your terminal",
