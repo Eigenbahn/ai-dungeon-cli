@@ -266,9 +266,11 @@ class AiDungeon:
     def init_story(self):
         print("Generating story... Please wait...\n")
 
-        story_response = self.session.post(
+        r = self.session.post(
             "https://api.aidungeon.io/sessions", json=self.story_configuration
-        ).json()
+        )
+        r.raise_for_status()
+        story_response = r.json()
 
         self.prompt_iteration = 2
         self.user_id = story_response["userId"]
@@ -281,19 +283,22 @@ class AiDungeon:
 
     # Function for when the input typed was ordinary
     def process_regular_action(self, user_input: str):
-        action_res = self.session.post(
+        r = self.session.post(
             "https://api.aidungeon.io/sessions/" + str(self.session_id) + "/inputs",
             json={"text": user_input},
-        ).json()
+        )
+        r.raise_for_status()
+        action_res = r.json()
         action_res_str = action_res[self.prompt_iteration]["value"]
         print_handler(action_res_str)
 
     # Function for when /remember is typed
     def process_remember_action(self, user_input: str):
-        self.session.patch(
+        r = self.session.patch(
             "https://api.aidungeon.io/sessions/" + str(self.session_id),
             json={"context": user_input},
         )
+        r.raise_for_status()
 
     # Function that is called each iteration to process user inputs
     def process_next_action(self):
@@ -356,8 +361,23 @@ def main():
     except KeyboardInterrupt:
         print_handler("Received Keyboard Interrupt. Bye Bye...")
 
+    except requests.exceptions.TooManyRedirects:
+        print_handler("Exceded max allowed number of HTTP redirects, API backend has probably changed")
+        exit(1)
+
+    except requests.exceptions.HTTPError as err:
+        print_handler("Unexpected response from API backend:")
+        print_handler(err)
+        exit(1)
+
     except ConnectionError:
         print_handler("Lost connection to the Ai Dungeon servers")
+        exit(1)
+
+    except requests.exceptions.RequestException as err:
+        print_handler("Totally unexpected exception:")
+        print_handler(err)
+        exit(1)
 
 
 if __name__ == "__main__":
