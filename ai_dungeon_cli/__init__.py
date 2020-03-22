@@ -281,6 +281,34 @@ class AiDungeon:
 
         print_handler(story_pitch)
 
+    def resume_story(self, session_id: str):
+        r = self.session.get(
+            "https://api.aidungeon.io/sessions"
+        )
+        r.raise_for_status()
+
+        sessions_response = r.json()
+        story_session = next(iter(session for session in sessions_response if session['id'] == session_id), None)
+
+        if(story_session):
+            self.user_id = story_session["userId"]
+            self.session_id = story_session["id"]
+            self.public_id = story_session["publicId"]
+            story_timeline = story_session["story"]
+            i = len(story_timeline) - 1
+            while(i > 0):
+                if(story_timeline[i]['type'] == "output"):
+                    break
+                i -= 1
+            self.prompt_iteration = i
+        else:
+            print_handler("Invalid session ID")
+            return
+
+        last_story_output = story_timeline[self.prompt_iteration]["value"]
+        self.prompt_iteration += 2
+        print_handler(last_story_output)
+
     # Function for when the input typed was ordinary
     def process_regular_action(self, user_input: str):
         r = self.session.post(
