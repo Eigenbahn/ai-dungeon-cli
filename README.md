@@ -94,6 +94,17 @@ prompt: 'me: '
 ```
 
 
+#### Slow Typing Animation
+
+By default, responses are printed to the screen instantly.
+
+To enable a fun "slow" typing animation, use:
+
+```yaml
+slow_typing_effect: True
+```
+
+
 ## Dependencies
 
 Please have a look at [requirements.txt](./requirements.txt).
@@ -129,12 +140,15 @@ So don't hesitate to [help support the hosting fees](https://aidungeon.io/) to k
 Jordan Besly [@p3r7](https://github.com/p3r7) ([blog](https://www.eigenbahn.com/)).
 
 
-## Contributors
+## Contributors & acknowledgements
 
  Major contributions:
  - Idan Gur [@idangur](https://github.com/idangur): OOP rewrite of game logic
  - Alberto Oporto Ames [@otreblan](https://github.com/otreblan): packaging, submission to AUR
+ - [@jgb95](https://github.com/jgb95): slow typing effect
 
  Minor contributions:
  - Robert Davis [@bdavs](https://github.com/bdavs): pip requirements
  - [@Jezza](https://github.com/Jezza): suggested login using creds
+
+Code for slow typing effect inspired by [this message](https://mail.python.org/pipermail/tutor/2003-November/026645.html) from [Magnus Lycka](https://github.com/magnus-lycka) on the [Python Tutor mailing list](https://mail.python.org/mailman/listinfo/tutor).
