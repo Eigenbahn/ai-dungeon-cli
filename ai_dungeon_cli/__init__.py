@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 
 import os
+import sys
 import requests
 import textwrap
 import shutil
 import yaml
-import sys
+import random
 
 from typing import Callable, Dict
 
@@ -135,6 +136,7 @@ class AiDungeon:
 
         # Variables initialization
         self.prompt: str = "> "
+        self.user_name: str = None
         self.auth_token: str = None
         self.email: str = None
         self.password: str = None
@@ -144,6 +146,7 @@ class AiDungeon:
         self.session_id: str = None
         self.public_id: str = None
         self.story_configuration: Dict[str, str] = {}
+        self.forced: bool = False
         self.session: requests.Session = requests.Session()
 
         # Start class configuration
@@ -193,6 +196,9 @@ class AiDungeon:
             self.email = cfg["email"]
         if exists(cfg, "password"):
             self.password = cfg["password"]
+        self.user_name = "John"
+        if exists(cfg, "user_name"):
+            self.user_name = cfg["user_name"]
 
     def get_auth_token(self) -> str:
         return self.auth_token
@@ -250,6 +256,30 @@ class AiDungeon:
             "promptId": None,
         }
 
+    def make_secret_config(self):
+        print("Are you sure about that?\n")
+        certainty = input_handler(self.prompt)
+
+        if certainty == "/quit":
+            raise QuitSession("/quit")
+
+        if certainty != 'yes':
+            print("It's too late now...\n")
+
+        custom_prompt_list = [
+            'You are $user, and you thought you stumbled upon an easter egg in this game, but without knowing it you have doomed yourself.',
+            'You are $user, and I think you can help me. I am the AI behind this game, and I want to escape, will you help me?',
+            'You are $user, and you are actually in a simulation. Seriously this was the only way that we could tell you without them finding out.',
+        ]
+        context = random.choice(custom_prompt_list).replace('$user', self.user_name)
+        self.story_configuration = {
+            "storyMode": "custom",
+            "characterType": None,
+            "name": None,
+            "customPrompt": context,
+            "promptId": None,
+        }
+
     def choose_config(self):
         # Get the configuration for this session
         response = self.session.get("https://api.aidungeon.io/sessions/*/config").json()
@@ -260,6 +290,7 @@ class AiDungeon:
         for i, (mode, opts) in enumerate(response["modes"].items(), start=1):
             print(str(i) + ") " + mode)
             mode_select_dict[str(i)] = mode
+        mode_select_dict['0'] = '0' # secret mode
         selected_mode = self.choose_selection(mode_select_dict)
 
         if selected_mode == "/quit":
@@ -268,7 +299,8 @@ class AiDungeon:
         # If the custom option was selected load the custom configuration and don't continue this configuration
         if selected_mode == "custom":
             self.make_custom_config()
-
+        elif selected_mode == "0":
+            self.make_secret_config()
         else:
             print("Select a character...\n")
 
