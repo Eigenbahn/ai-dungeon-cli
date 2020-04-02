@@ -30,6 +30,8 @@ except ImportError:
 class FailedConfiguration(Exception):
     """raise this when the yaml configuration phase failed"""
 
+    def __init__(self, message):
+        self.message = message
 
 # Quit Session exception for easier error and exiting handling
 class QuitSession(Exception):
@@ -165,18 +167,14 @@ class Config:
                 pass
 
         if not did_read_cfg_file:
-            print("Missing config file at ", end="")
-            print(*cfg_file_paths, sep=", ")
-            raise FailedConfiguration
+            raise FailedConfiguration("Missing config file at " \
+                                      + ", ".join(cfg_file_paths))
 
         if (not exists(cfg, "auth_token")) and (
                 not (exists(cfg, "email")) and not (exists(cfg, "password"))
         ):
-            print_handler(
-                "Missing or empty authentication configuration. "
-                "Please register a token ('auth_token' key) or credentials ('email' / 'password')"
-            )
-            raise FailedConfiguration
+            raise FailedConfiguration("Missing or empty authentication configuration. "
+            "Please register a token ('auth_token' key) or credentials ('email' / 'password')")
 
         if exists(cfg, "slow_typing_effect"):
             self.slow_typing_effect = cfg["slow_typing_effect"]
@@ -469,7 +467,10 @@ def main():
         # Starts the game
         ai_dungeon.start_game()
 
-    except FailedConfiguration:
+    except FailedConfiguration as e:
+        # NB: No UserIo initialized at this level
+        # hence we fallback to a classic `print`
+        print(e.message)
         exit(1)
 
     except QuitSession:
