@@ -220,10 +220,7 @@ class AiDungeon:
         )
 
         if request.status_code != requests.codes.ok:
-            self.user_io.handle_basic_output(
-                "Failed to log in using provided credentials. Check your config."
-            )
-            raise FailedConfiguration
+            raise FailedConfiguration("Failed to log in using provided credentials. Check your config.")
 
         self.conf.auth_token = request.json()["accessToken"]
 
