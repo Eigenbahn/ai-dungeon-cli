@@ -8,6 +8,8 @@ import shutil
 import yaml
 import random
 
+from abc import ABC, abstractmethod
+
 from typing import Callable, Dict
 
 from time import sleep
@@ -28,6 +30,8 @@ except ImportError:
 class FailedConfiguration(Exception):
     """raise this when the yaml configuration phase failed"""
 
+    def __init__(self, message):
+        self.message = message
 
 # Quit Session exception for easier error and exiting handling
 class QuitSession(Exception):
@@ -44,6 +48,74 @@ def exists(cfg: Dict[str, str], key: str) -> str:
 # -------------------------------------------------------------------------
 # UTILS: TERMINAL
 
+class UserIo(ABC):
+    def handle_user_input(self, prompt: str = '') -> str:
+        pass
+
+    def handle_basic_output(self, text: str):
+        pass
+
+    def handle_story_output(self, text: str):
+        self.handle_basic_output(text)
+
+
+class TermIo(UserIo):
+    def __init__(self, prompt: str = ''):
+        self.prompt = prompt
+
+    def handle_user_input(self) -> str:
+        user_input = input(self.prompt)
+        print()
+        return user_input
+
+    def handle_basic_output(self, text: str):
+        print("\n".join(textwrap.wrap(text, self.get_width())))
+        print()
+
+    # def handle_story_output(self, text: str):
+    #     self.handle_basic_output(text)
+
+    def get_width(self):
+        terminal_size = shutil.get_terminal_size((80, 20))
+        return terminal_size.columns
+
+    def display_splash(self):
+        filename = os.path.dirname(os.path.realpath(__file__))
+        locale = None
+        term = None
+        if "LC_ALL" in os.environ:
+            locale = os.environ["LC_ALL"]
+        if "TERM" in os.environ:
+            term = os.environ["TERM"]
+
+        if locale == "C" or (term and term.startswith("vt")):
+            filename += "/opening-ascii.txt"
+        else:
+            filename += "/opening-utf8.txt"
+
+        with open(filename, "r", encoding="utf8") as splash_image:
+            print(splash_image.read())
+
+    def clear(self):
+        if os.name == "nt":
+            _ = os.system("cls")
+        else:
+            _ = os.system("clear")
+
+
+class TermIoSlowStory(TermIo):
+    def __init__(self):
+        sys.stdout = Unbuffered(sys.stdout)
+
+    def handle_story_output(self, text: str):
+        for line in textwrap.wrap(text, self.get_width()):
+            for letter in line:
+                print(letter, end='')
+                sleep(randint(2, 10)*0.005)
+            print()
+        print()
+
+
 # allow unbuffered output for slow typing effect
 class Unbuffered(object):
    def __init__(self, stream):
@@ -57,105 +129,27 @@ class Unbuffered(object):
    def __getattr__(self, attr):
        return getattr(self.stream, attr)
 
-sys.stdout = Unbuffered(sys.stdout)
-
-terminal_size = shutil.get_terminal_size((80, 20))
-terminal_width = terminal_size.columns
-
-
-def clear_console():
-    if os.name == "nt":
-        _ = os.system("cls")
-    else:
-        _ = os.system("clear")
-
-
-def display_splash():
-    filename = os.path.dirname(os.path.realpath(__file__))
-    locale = None
-    term = None
-    if "LC_ALL" in os.environ:
-        locale = os.environ["LC_ALL"]
-    if "TERM" in os.environ:
-        term = os.environ["TERM"]
-
-    if locale == "C" or (term and term.startswith("vt")):
-        filename += "/opening-ascii.txt"
-    else:
-        filename += "/opening-utf8.txt"
-
-    with open(filename, "r", encoding="utf8") as splash_image:
-        print(splash_image.read())
-
-
-def set_input_handler(method: Callable[[str], str]):
-    global input_handler
-    input_handler = method
-
-
-def set_print_handler(method: Callable[[str], None]):
-    global print_handler
-    print_handler = method
-
-
-def set_story_print_handler(method: Callable[[str], None]):
-    global story_print_handler
-    story_print_handler = method
-
-
-def get_user_input_term(prompt: str = '') -> str:
-    user_input = input(prompt)
-    print()
-    return user_input
-
-
-def print_output_term(text: str):
-    print("\n".join(textwrap.wrap(text, terminal_width)))
-    print()
-
-
-def print_output_term_slow_effect(text: str):
-    for line in textwrap.wrap(text, terminal_width):
-        for letter in line:
-            print(letter, end='')
-            sleep(randint(2, 10)*0.005)
-        print()
-    print()
-
-
-input_handler = get_user_input_term
-print_handler = print_output_term
-story_print_handler = print_output_term
-
 
 # -------------------------------------------------------------------------
-# GAME LOGIC
+# CONF
 
-class AiDungeon:
+class Config:
     def __init__(self):
-
-        # Variables initialization
         self.prompt: str = "> "
+        self.slow_typing_effect: str = "> "
+
         self.user_name: str = None
         self.auth_token: str = None
         self.email: str = None
         self.password: str = None
-        self.prompt_iteration: int = None
-        self.stop_session: bool = False
-        self.user_id: str = None
-        self.session_id: str = None
-        self.public_id: str = None
-        self.story_configuration: Dict[str, str] = {}
-        self.forced: bool = False
-        self.session: requests.Session = requests.Session()
 
-        # Start class configuration
-        self.load_configuration_file()
+    @staticmethod
+    def loaded_from_file():
+        conf = Config()
+        conf.load_from_file()
+        return conf
 
-    def update_session_auth(self):
-        self.session.headers.update({"X-Access-Token": self.auth_token})
-
-    def load_configuration_file(self):
+    def load_from_file(self):
         cfg_file = "/config.yml"
         cfg_file_paths = [
             os.path.dirname(os.path.realpath(__file__)) + cfg_file,
@@ -173,21 +167,17 @@ class AiDungeon:
                 pass
 
         if not did_read_cfg_file:
-            print("Missing config file at ", end="")
-            print(*cfg_file_paths, sep=", ")
-            raise FailedConfiguration
+            raise FailedConfiguration("Missing config file at " \
+                                      + ", ".join(cfg_file_paths))
 
         if (not exists(cfg, "auth_token")) and (
-            not (exists(cfg, "email")) and not (exists(cfg, "password"))
+                not (exists(cfg, "email")) and not (exists(cfg, "password"))
         ):
-            print_handler(
-                "Missing or empty authentication configuration. "
-                "Please register a token ('auth_token' key) or credentials ('email' / 'password')"
-            )
-            raise FailedConfiguration
+            raise FailedConfiguration("Missing or empty authentication configuration. "
+            "Please register a token ('auth_token' key) or credentials ('email' / 'password')")
 
         if exists(cfg, "slow_typing_effect"):
-            set_story_print_handler(print_output_term_slow_effect)
+            self.slow_typing_effect = cfg["slow_typing_effect"]
         if exists(cfg, "prompt"):
             self.prompt = cfg["prompt"]
         if exists(cfg, "auth_token"):
@@ -196,30 +186,47 @@ class AiDungeon:
             self.email = cfg["email"]
         if exists(cfg, "password"):
             self.password = cfg["password"]
-        self.user_name = "John"
+            self.user_name = "John"
         if exists(cfg, "user_name"):
             self.user_name = cfg["user_name"]
 
+
+# -------------------------------------------------------------------------
+# GAME LOGIC
+
+class AiDungeon:
+    def __init__(self, conf: Config, user_io: UserIo):
+        self.prompt_iteration: int = None
+        self.stop_session: bool = False
+        self.user_id: str = None
+        self.session_id: str = None
+        self.public_id: str = None
+        self.story_configuration: Dict[str, str] = {}
+        self.session: requests.Session = requests.Session()
+
+        self.conf = conf
+        self.user_io = user_io
+
+    def update_session_auth(self):
+        self.session.headers.update({"X-Access-Token": self.conf.auth_token})
+
     def get_auth_token(self) -> str:
-        return self.auth_token
+        return self.conf.auth_token
 
     def login(self):
         request = self.session.post(
             "https://api.aidungeon.io/users",
-            json={"email": self.email, "password": self.password},
+            json={"email": self.conf.email, "password": self.conf.password},
         )
 
         if request.status_code != requests.codes.ok:
-            print_handler(
-                "Failed to log in using provided credentials. Check your config."
-            )
-            raise FailedConfiguration
+            raise FailedConfiguration("Failed to log in using provided credentials. Check your config.")
 
-        self.auth_token = request.json()["accessToken"]
+        self.conf.auth_token = request.json()["accessToken"]
 
     def choose_selection(self, allowed_values: Dict[str, str]) -> str:
         while True:
-            choice = input_handler(self.prompt)
+            choice = self.user_io.handle_user_input()
 
             choice = choice.strip()
 
@@ -231,19 +238,19 @@ class AiDungeon:
             elif choice in allowed_values.values():
                 pass
             else:
-                print_handler("Please enter a valid selection.")
+                self.user_io.handle_basic_output("Please enter a valid selection.")
                 continue
             break
         return choice
 
     def make_custom_config(self):
-        print_handler(
+        self.user_io.handle_basic_output(
             "Enter a prompt that describes who you are and the first couple sentences of where you start out ex: "
             "'You are a knight in the kingdom of Larion. You are hunting the evil dragon who has been terrorizing "
             "the kingdom. You enter the forest searching for the dragon and see'"
         )
 
-        context = input_handler(self.prompt)
+        context = self.user_io.handle_user_input()
 
         if context == "/quit":
             raise QuitSession("/quit")
@@ -258,7 +265,7 @@ class AiDungeon:
 
     def make_secret_config(self):
         print("Are you sure about that?\n")
-        certainty = input_handler(self.prompt)
+        certainty = self.user_io.handle_user_input()
 
         if certainty == "/quit":
             raise QuitSession("/quit")
@@ -271,7 +278,7 @@ class AiDungeon:
             'You are $user, and I think you can help me. I am the AI behind this game, and I want to escape, will you help me?',
             'You are $user, and you are actually in a simulation. Seriously this was the only way that we could tell you without them finding out.',
         ]
-        context = random.choice(custom_prompt_list).replace('$user', self.user_name)
+        context = random.choice(custom_prompt_list).replace('$user', self.conf.user_name)
         self.story_configuration = {
             "storyMode": "custom",
             "characterType": None,
@@ -317,7 +324,7 @@ class AiDungeon:
 
             print("Enter your character's name...\n")
 
-            character_name = input_handler(self.prompt)
+            character_name = self.user_io.handle_user_input()
 
             if character_name == "/quit":
                 raise QuitSession("/quit")
@@ -346,7 +353,7 @@ class AiDungeon:
         self.public_id = story_response["publicId"]
 
         story_pitch = story_response["story"][0]["value"]
-        story_print_handler(story_pitch)
+        self.user_io.handle_story_output(story_pitch)
 
     def resume_story(self, session_id: str):
         r = self.session.get(
@@ -369,12 +376,12 @@ class AiDungeon:
                 i -= 1
             self.prompt_iteration = i
         else:
-            print_handler("Invalid session ID")
+            self.user_io.handle_basic_output("Invalid session ID")
             return
 
         last_story_output = story_timeline[self.prompt_iteration]["value"]
         self.prompt_iteration += 2
-        print_handler(last_story_output)
+        self.user_io.handle_basic_output(last_story_output)
 
     # Function for when the input typed was ordinary
     def process_regular_action(self, user_input: str):
@@ -386,7 +393,7 @@ class AiDungeon:
         action_res = r.json()
 
         action_res_str = action_res[self.prompt_iteration]["value"]
-        story_print_handler(action_res_str)
+        self.user_io.handle_story_output(action_res_str)
 
     # Function for when /remember is typed
     def process_remember_action(self, user_input: str):
@@ -398,7 +405,7 @@ class AiDungeon:
 
     # Function that is called each iteration to process user inputs
     def process_next_action(self):
-        user_input = input_handler(self.prompt)
+        user_input = self.user_io.handle_user_input()
 
         if user_input == "/quit":
             self.stop_session = True
@@ -422,8 +429,17 @@ class AiDungeon:
 def main():
 
     try:
+        # Initialize the configuration from config file
+        conf = Config.loaded_from_file()
+
+        # Initialize the terminal I/O class
+        if conf.slow_typing_effect:
+            term_io = TermIo(conf.prompt)
+        else:
+            term_io = TermIoSlowStory(conf.prompt)
+
         # Initialize the AiDungeon class with the given auth_token and prompt
-        ai_dungeon = AiDungeon()
+        ai_dungeon = AiDungeon(conf, term_io)
 
         # Login if necessary
         if not ai_dungeon.get_auth_token():
@@ -433,11 +449,11 @@ def main():
         ai_dungeon.update_session_auth()
 
         # Clears the console
-        clear_console()
+        term_io.clear()
 
         # Displays the splash image accordingly
-        if terminal_width >= 80:
-            display_splash()
+        if term_io.get_width() >= 80:
+            term_io.display_splash()
 
         # Loads the current session configuration
         ai_dungeon.choose_config()
@@ -448,31 +464,34 @@ def main():
         # Starts the game
         ai_dungeon.start_game()
 
-    except FailedConfiguration:
+    except FailedConfiguration as e:
+        # NB: No UserIo initialized at this level
+        # hence we fallback to a classic `print`
+        print(e.message)
         exit(1)
 
     except QuitSession:
-        print_handler("Bye Bye!")
+        term_io.handle_basic_output("Bye Bye!")
 
     except KeyboardInterrupt:
-        print_handler("Received Keyboard Interrupt. Bye Bye...")
+        term_io.handle_basic_output("Received Keyboard Interrupt. Bye Bye...")
 
     except requests.exceptions.TooManyRedirects:
-        print_handler("Exceded max allowed number of HTTP redirects, API backend has probably changed")
+        term_io.handle_basic_output("Exceded max allowed number of HTTP redirects, API backend has probably changed")
         exit(1)
 
     except requests.exceptions.HTTPError as err:
-        print_handler("Unexpected response from API backend:")
-        print_handler(err)
+        term_io.handle_basic_output("Unexpected response from API backend:")
+        term_io.handle_basic_output(err)
         exit(1)
 
     except ConnectionError:
-        print_handler("Lost connection to the Ai Dungeon servers")
+        term_io.handle_basic_output("Lost connection to the Ai Dungeon servers")
         exit(1)
 
     except requests.exceptions.RequestException as err:
-        print_handler("Totally unexpected exception:")
-        print_handler(err)
+        term_io.handle_basic_output("Totally unexpected exception:")
+        term_io.handle_basic_output(err)
         exit(1)
 
 
