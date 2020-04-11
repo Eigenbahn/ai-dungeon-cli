@@ -27,6 +27,8 @@ Of for unstable release from the source code:
 
 #### Arch Linux
 
+[![AUR version](https://img.shields.io/aur/version/ai-dungeon-cli?logo=arch-linux)](https://aur.archlinux.org/packages/ai-dungeon-cli)
+
 Package is on [AUR](https://aur.archlinux.org/packages/ai-dungeon-cli-git/).
 
     $ git clone https://aur.archlinux.org/ai-dungeon-cli-git.git
