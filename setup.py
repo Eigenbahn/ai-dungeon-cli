@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="ai-dungeon-cli",
-    version="0.1.3",
+    version_format='{tag}',
     author="Jordan Besly",
     author_email="",
     description="Play ai dungeon from your terminal",
@@ -22,8 +22,7 @@ setuptools.setup(
         "PyYAML>=5.1.2",
         "pyreadline >= 2.1;platform_system=='Windows'"
     ],
-
-
+    setup_requires=['setuptools-git-version'],
     entry_points={
         "console_scripts": [
             "ai-dungeon-cli = ai_dungeon_cli.__init__:main",
