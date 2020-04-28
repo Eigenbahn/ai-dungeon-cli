@@ -44,19 +44,30 @@ Old school way:
 
 ## Running
 
-In either way, you first need to create a configuration file.
+In any case, you first need to create a configuration file.
 
-If installed with pip:
+#### Installed
 
     $ ai-dungeon-cli
 
-Or from source:
+#### From source
+
+With a conda env (assuming you're using [anaconda](https://www.anaconda.com/)):
 
     $ cd ai-dungeon-cli
+    $ conda env create
+    $ conda activate ai-dungeon-cli-env
+    $ ./ai_dungeon_cli/__init__.py
+
+With a viltualenv:
+
+    $ cd ai-dungeon-cli
+    $ virtualenv -p $(command -v python3) ai-dungeon-cli-venv
+    $ source ai-dungeon-cli-venv/bin/activate
     $ python3 -m pip install -r requirements.txt
     $ ./ai_dungeon_cli/__init__.py
 
-Please note that it is recommended to do it in a virtual env in order to not mess up with the main Python env on your system.
+Please note that all those examples use a virtual env in order to not mess up with the main Python env on your system.
 
 
 ## Configuration
