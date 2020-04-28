@@ -31,6 +31,12 @@ Of for unstable release from the source code:
 
 Package is on [AUR](https://aur.archlinux.org/packages/ai-dungeon-cli-git/).
 
+Using [trizen](https://github.com/trizen/trizen):
+
+    $ trizen -S ai-dungeon-cli-git
+
+Old school way:
+
     $ git clone https://aur.archlinux.org/ai-dungeon-cli-git.git
     $ cd ai-dungeon-cli-git
     $ makepkg -si
