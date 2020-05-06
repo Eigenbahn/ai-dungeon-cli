@@ -171,3 +171,8 @@ Jordan Besly [@p3r7](https://github.com/p3r7) ([blog](https://www.eigenbahn.com/
  - [@Jezza](https://github.com/Jezza): suggested login using creds
 
 Code for slow typing effect inspired by [this message](https://mail.python.org/pipermail/tutor/2003-November/026645.html) from [Magnus Lycka](https://github.com/magnus-lycka) on the [Python Tutor mailing list](https://mail.python.org/mailman/listinfo/tutor).
+
+
+## Similar projects
+
+[SoptikHa2/aidungeon2-cli](https://github.com/SoptikHa2/aidungeon2-cli) is a very similar project, written in Rust.
