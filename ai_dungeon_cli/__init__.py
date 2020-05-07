@@ -467,13 +467,15 @@ class AiDungeonV2(AbstractAiDungeon):
     def find_action_type(self, user_input: str):
         user_input = user_input.strip()
         action = 'Do'
-        if user_input.lower().startswith('/do '):
+        if user_input == '':
+            return (action, user_input)
+        elif user_input.lower().startswith('/do '):
             user_input = user_input[len('/do '):]
             action = 'Do'
-        if user_input.lower().startswith('/say '):
+        elif user_input.lower().startswith('/say '):
             user_input = user_input[len('/say '):]
             action = 'Say'
-        if user_input.lower().startswith('/story '):
+        elif user_input.lower().startswith('/story '):
             user_input = user_input[len('/story '):]
             action = 'Story'
         elif user_input.lower().startswith('you say "') and user_input[-1] == '"':
