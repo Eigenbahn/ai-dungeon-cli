@@ -20,6 +20,7 @@ setuptools.setup(
     install_requires=[
         "requests>=2.23.0",
         "PyYAML>=5.1.2",
+        "gql>=v3.0.0a1",
         "pyreadline >= 2.1;platform_system=='Windows'"
     ],
     setup_requires=['setuptools-git-version'],
