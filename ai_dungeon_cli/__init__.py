@@ -2,6 +2,8 @@
 
 import os
 import sys
+import asyncio
+from gql import gql, Client, WebsocketsTransport
 import requests
 import textwrap
 import shutil
@@ -27,7 +29,426 @@ from pprint import pprint
 # -------------------------------------------------------------------------
 # CONF
 
-DEBUG = False
+# DEBUG = False
+DEBUG = True
+
+def debug_print(msg):
+    if DEBUG:
+        print(msg)
+
+def debug_pprint(msg):
+    if DEBUG:
+        print(msg)
+
+
+async def test_async(access_token, adventure_id):
+    transport = WebsocketsTransport(url='wss://api.aidungeon.io/subscriptions',
+                                    init_payload={'token': access_token})
+
+    # Using `async with` on the client will start a connection on the transport
+    # and provide a `session` variable to execute queries on this connection
+    async with Client(
+            transport=transport,
+            fetch_schema_from_transport=True,
+    ) as session:
+
+        # # Execute single query
+        # query = gql('''
+        #     subscription subscribeContent($id: String) {  subscribeContent(id: $id) {    id    historyList    quests    error    memory    mode    died    actionLoading    characters {      id      userId      name      __typename    }    gameState    thirdPerson    __typename  }}
+        # ''')
+        # result = await session.execute(query)
+        # print(result)
+
+        # Request subscription
+        subscription = gql('''
+            subscription subscribeContent($id: String) {  subscribeContent(id: $id) {    id    historyList    quests    error    memory    mode    died    actionLoading    characters {      id      userId      name      __typename    }    gameState    thirdPerson    __typename  }}
+        ''')
+        subscription_params = {
+            "id": adventure_id
+        }
+
+        async for result in session.subscribe(subscription,
+                                              variable_values=subscription_params):
+            debug_print("got response")
+            debug_print(result)
+
+# -------------------------------------------------------------------------
+# API CLIENT ABSCTRACTION
+
+class AiDungeonApiClient:
+    def __init__(self):
+        self.url: str = 'wss://api.aidungeon.io/subscriptions'
+        self.websocket = WebsocketsTransport(url=self.url)
+        self.gql_client = Client(transport=self.websocket,
+                                 fetch_schema_from_transport=True)
+        self.account_id: str = ''
+        self.access_token: str = ''
+
+        self.single_player_mode_id: str = 'scenario:458612'
+        self.scenario_id: str = '' # REVIEW: maybe call it setting_id ?
+        self.character_id: str = ''
+        self.character_name: str = ''
+        self.story_pitch_template: str = ''
+        self.story_pitch: str = ''
+        self.adventure_id: str = ''
+        self.public_id: str = ''
+        self.quests: str = ''
+
+
+    def update_session_access_token(self, access_token):
+        self.websocket = WebsocketsTransport(
+            url=self.url,
+            init_payload={'token': access_token})
+        self.gql_client = Client(transport=self.websocket,
+                                 fetch_schema_from_transport=True)
+
+
+    def anonymous_login(self):
+        query_createAnonymousAccount = gql('''
+        mutation {  createAnonymousAccount {    id    accessToken    __typename  }}
+        ''')
+
+        debug_print("anonymous login")
+
+        for result in self.gql_client.subscribe(query_createAnonymousAccount):
+            debug_print(result)
+            # {'createAnonymousAccount': {'id': '3702934', 'accessToken': '1bcd84f0-c928-11ea-bdd8-8f34389fa8e1', '__typename': 'User'}}
+            self.account_id = result['createAnonymousAccount']['id']
+            self.access_token = result['createAnonymousAccount']['accessToken']
+            self.update_session_access_token(self.access_token)
+
+
+    def perform_init_handshake(self):
+        query_user_details = gql('''
+        {  user {    id    isDeveloper    hasPremium    lastAdventure {      id      mode      __typename    }    newProductUpdates {      id      title      description      createdAt      __typename    }    __typename  }}
+        ''')
+
+        debug_print("query user details")
+
+        # for result in self.gql_client.subscribe(query_user_details):
+        #     debug_print(result)
+            # {'user': {'id': '3703691', 'isDeveloper': False, 'hasPremium': False, 'lastAdventure': None, 'newProductUpdates': [], '__typename': 'User'}}
+
+        query_addDeviceToken = gql('''
+        mutation ($token: String, $platform: String) {  addDeviceToken(token: $token, platform: $platform)}
+        ''')
+        query_params_register_token = { 'token': 'web',
+                                        'platform': 'web' }
+
+        debug_print("add device token")
+
+        for result in self.gql_client.subscribe(
+                query_addDeviceToken,
+                variable_values=query_params_register_token):
+            debug_print(result)
+            # {'addDeviceToken': True}
+
+        query_sendEvent_startPremium = gql('''
+        mutation ($input: EventInput) {  sendEvent(input: $input)}
+        ''')
+        query_params_sendEvent_startPremium = {
+            "input": {
+                "eventName":"start_premium_v5",
+                "variation":"dont",
+                # "variation":"show",
+                "platform":"web"
+            }
+        }
+
+        debug_print("send event start premium")
+
+        # for result in self.gql_client.subscribe(
+        #         query_sendEvent_startPremium,
+        #         variable_values=query_params_sendEvent_startPremium):
+        #     debug_print(result)
+        #     # {'sendEvent': True}
+
+
+    @staticmethod
+    def normalize_options(raw_settings_list):
+        settings_dict = {}
+        for i, opts in enumerate(raw_settings_list, start=1):
+            setting_id = opts['id']
+            setting_name = opts['title']
+            settings_dict[str(i)] = [setting_id, setting_name]
+        return settings_dict
+
+
+    def get_settings_single_player(self):
+        prompt = ''
+        settings = {}
+
+        # NB: the 2 queries are basically requesting for the same thing, i.e. to get the menu of possible scenarios
+        # they get slightly differents vars
+        # I guess they're transitioning from one query to the other, but it's strange that a given version of the client performs both ?!
+
+        query_singlePlayer = gql('''
+        query ($id: String) {  user {    id    username    __typename  }  content(id: $id) {    id    userId    contentType    contentId    prompt    gameState    options {      id      title      __typename    }    playPublicId    __typename  }}
+        ''')
+        query_params_singlePlayer = {"id": self.single_player_mode_id}
+
+        debug_print("query_singleplayer_1")
+
+        for result in self.gql_client.subscribe(
+                query_singlePlayer,
+                variable_values=query_params_singlePlayer):
+            debug_print(result)
+            prompt = result['content']['prompt']
+            settings = self.normalize_options(result['content']['options'])
+
+        query_singlePlayer2 = gql('''
+        query ($id: String) {  content(id: $id) {    id    contentType    contentId    title    description    prompt    memory    tags    nsfw    published    createdAt    updatedAt    deletedAt    options {      id      title      __typename    }    __typename  }}
+        ''')
+        query_params_singlePlayer2 = {"id": self.single_player_mode_id}
+
+        debug_print("query_singleplayer_2")
+
+        for result in self.gql_client.subscribe(
+                query_singlePlayer2,
+                variable_values=query_params_singlePlayer2):
+            debug_print(result)
+            # prompt = result['content']['prompt']
+            # settings = self.normalize_options(result['content']['options'])
+
+        return [prompt, settings]
+
+
+    def get_characters(self):
+        prompt = ''
+        characters = {}
+
+        query = gql('''
+        query ($id: String) {  user {    id    username    __typename  }  content(id: $id) {    id    userId    contentType    contentId    prompt    gameState    options {      id      title      __typename    }    playPublicId    __typename  }}
+        ''')
+        query_params = {"id": self.scenario_id}
+
+        debug_print("query character select prompt")
+
+        for result in self.gql_client.subscribe(query,
+                                                variable_values=query_params):
+            debug_print(result)
+            prompt = result['content']['prompt']
+            characters = self.normalize_options(result['content']['options'])
+
+        query_2 = gql('''
+        query ($id: String) {  content(id: $id) {    id    contentType    contentId    title    description    prompt    memory    tags    nsfw    published    createdAt    updatedAt    deletedAt    options {      id      title      __typename    }    __typename  }}
+        ''')
+        query_params_2 = {"id": self.scenario_id}
+
+        debug_print("query character select prompt 2")
+
+        for result in self.gql_client.subscribe(query_2,
+                                                variable_values=query_params_2):
+            debug_print(result)
+            # prompt = result['content']['prompt']
+            # characters = self.normalize_options(result['content']['options'])
+
+        return [prompt, characters]
+
+
+    def get_story_for_scenario(self):
+        query = gql('''
+        query ($id: String) {  user {    id    username    __typename  }  content(id: $id) {    id    userId    contentType    contentId    prompt    gameState    options {      id      title      __typename    }    playPublicId    __typename  }}
+        ''')
+        query_params = {"id": self.character_id}
+
+        debug_print("query get story for scenario")
+
+        for result in self.gql_client.subscribe(query,
+                                                variable_values=query_params):
+            debug_print(result)
+            self.story_pitch_template = result['content']['prompt']
+
+        query_2 = gql('''
+        query ($id: String) {  content(id: $id) {    id    contentType    contentId    title    description    prompt    memory    tags    nsfw    published    createdAt    updatedAt    deletedAt    options {      id      title      __typename    }    __typename  }}
+        ''')
+        query_params_2 = {"id": self.scenario_id}
+
+        debug_print("query get story for scenario 2")
+
+        for result in self.gql_client.subscribe(query_2,
+                                                variable_values=query_params_2):
+            debug_print(result)
+
+
+    @staticmethod
+    def initial_story_from_history_list(history_list):
+        pitch = ''
+        for entry in history_list:
+            if not entry['type'] in ['story', 'continue']:
+                break
+            pitch += entry['text']
+        return pitch
+
+
+    def set_story_pitch(self):
+        self.story_pitch = self.story_pitch_template.replace('${character.name}', self.character_name)
+
+
+    def init_story(self):
+        query = gql('''
+        mutation ($id: String, $prompt: String) {  createAdventureFromScenarioId(id: $id, prompt: $prompt) {    id    contentType    contentId    title    description    musicTheme    tags    nsfw    published    createdAt    updatedAt    deletedAt    publicId    historyList    __typename  }}
+        ''')
+        query_params = {
+            "id": self.character_id,
+            "prompt": self.story_pitch
+        }
+
+        debug_print("init story")
+
+        for result in self.gql_client.subscribe(query,
+                                                variable_values=query_params):
+            debug_print(result)
+            self.adventure_id = result['createAdventureFromScenarioId']['id']
+            self.story_pitch = self.initial_story_from_history_list(result['createAdventureFromScenarioId']['historyList'])
+
+        query_2 = gql('''
+        query ($id: String, $playPublicId: String) {  content(id: $id, playPublicId: $playPublicId) {    id    historyList    quests    playPublicId    userId    __typename  }}
+        ''')
+        query_params_2 = {
+            "id": self.adventure_id,
+        }
+
+        debug_print("init story 2")
+
+        for result in self.gql_client.subscribe(query_2,
+                                                variable_values=query_params_2):
+            debug_print(result)
+            self.quests = result['content']['quests']
+            self.public_id = result['content']['playPublicId']
+            # self.story_pitch = self.initial_story_from_history_list(result['content']['historyList'])
+
+
+    def perform_regular_action_sync(self, action, user_input):
+
+        test_async(self.access_token, self.adventure_id)
+
+        # click button event
+        query = gql('''
+        mutation ($input: EventInput) {  sendEvent(input: $input)}
+        ''')
+        query_params = {
+            "input": {
+                "eventName": "submit_button_clicked",
+                "platform":"web"
+            }
+        }
+
+        debug_print("click button send action")
+
+        # for result in self.gql_client.subscribe(query,
+        #                                         variable_values=query_params):
+        #     debug_print(result)
+
+
+        query_send = gql('''
+        mutation ($input: ContentActionInput) {  sendAction(input: $input) {    id    actionLoading    memory    died    gameState    __typename  }}
+        ''')
+        query_params_send = {
+            "input": {
+                "type": action,
+                "text": user_input,
+                "id": self.adventure_id
+            }
+        }
+
+        debug_print("send regular action")
+
+        for result in self.gql_client.subscribe(query_send,
+                                                variable_values=query_params_send):
+            debug_print(result)
+
+        query_get_story = gql('''
+        subscription subscribeContent($id: String) {  subscribeContent(id: $id) {    id    historyList    quests    error    memory    mode    died    actionLoading    characters {      id      userId      name      __typename    }    gameState    thirdPerson    __typename  }}
+        ''')
+        query_params_get_story = {
+            "id": self.adventure_id
+        }
+
+        # debug_print("get response")
+
+        # for result in self.gql_client.subscribe(query_get_story,
+        #                                         variable_values=query_params_get_story):
+        #     debug_print(result)
+
+
+        return 'cont'
+
+
+    async def perform_regular_action(self, action, user_input):
+        transport = WebsocketsTransport(url='wss://api.aidungeon.io/subscriptions',
+                                        init_payload={'token': self.access_token})
+        async with Client(
+                transport=transport,
+                fetch_schema_from_transport=True,
+        ) as session:
+            subscription = gql('''
+            subscription subscribeContent($id: String) {  subscribeContent(id: $id) {    id    historyList    quests    error    memory    mode    died    actionLoading    characters {      id      userId      name      __typename    }    gameState    thirdPerson    __typename  }}
+        ''')
+            subscription_params = {
+                "id": self.adventure_id
+            }
+
+            async for result in session.subscribe(subscription,
+                                                  variable_values=subscription_params):
+                debug_print("got response")
+                debug_print(result)
+
+            # click button event
+            query = gql('''
+            mutation ($input: EventInput) {  sendEvent(input: $input)}
+            ''')
+            query_params = {
+                "input": {
+                    "eventName": "submit_button_clicked",
+                    "platform":"web"
+                }
+            }
+
+            debug_print("click button send action")
+            result = await session.execute(query,
+                                           variable_values=query_params)
+            debug_print(result)
+
+            query_send = gql('''
+            mutation ($input: ContentActionInput) {  sendAction(input: $input) {    id    actionLoading    memory    died    gameState    __typename  }}
+        ''')
+            query_params_send = {
+                "input": {
+                    "type": action,
+                    "text": user_input,
+                    "id": self.adventure_id
+                }
+            }
+
+            debug_print("send regular action")
+            result = await session.execute(query,
+                                           variable_values=query_params)
+            debug_print(result)
+
+        for result in self.gql_client.subscribe(query_send,
+                                                variable_values=query_params_send):
+            debug_print(result)
+
+        return 'cont'
+
+# -------------------------------------------------------------------------
+# TEST
+
+# api_client = AiDungeonApiClient()
+
+# api_client.anonymous_login()
+# api_client.perform_init_handshake()
+# api_client.get_settings_single_player()
+# api_client.scenario_id = 'scenario:458617'
+# api_client.get_characters()
+# api_client.character_id = 'scenario:458627'
+# api_client.character_name = 'Arnold'
+# api_client.get_story_for_scenario()
+# api_client.set_story_pitch()
+# api_client.init_story()
+# debug_print(api_client.story_pitch)
+# exit()
 
 # -------------------------------------------------------------------------
 # EXCEPTIONS
@@ -200,7 +621,7 @@ class Config:
 # GAME LOGIC
 
 class AbstractAiDungeon(ABC):
-    def __init__(self, conf: Config, user_io: UserIo):
+    def __init__(self, api: AiDungeonApiClient, conf: Config, user_io: UserIo):
         self.stop_session: bool = False
         self.user_id: str = None
         self.session_id: str = None
@@ -208,6 +629,7 @@ class AbstractAiDungeon(ABC):
         self.story_configuration: Dict[str, str] = {}
         self.session: requests.Session = requests.Session()
 
+        self.api = api
         self.conf = conf
         self.user_io = user_io
 
@@ -281,24 +703,19 @@ class AbstractAiDungeon(ABC):
 ## --------------------------------
 
 class AiDungeonV2(AbstractAiDungeon):
-    def __init__(self, conf: Config, user_io: UserIo, api_dn='api.aidungeon.io', scenario_id=362833):
-        self.scenario_id = scenario_id
-        self.api_dn = api_dn
-        self.story_pitch: str = None
-        super().__init__(conf, user_io)
+    def __init__(self, api: AiDungeonApiClient, conf: Config, user_io: UserIo):
+        super().__init__(api, conf, user_io)
+
 
     def login(self):
-        # TODO: use newer API URL
-        request = self.session.post(
-            # "https://" + self.api_dn + "/users",
-            "https://api.aidungeon.io/users",
-            json={"email": self.conf.email, "password": self.conf.password},
-        )
+        auth_token = self.get_auth_token()
 
-        if request.status_code != requests.codes.ok:
-            raise FailedConfiguration("Failed to log in using provided credentials. Check your config.")
+        if auth_token:
+            self.api.update_session_access_token(auth_token)
+        else:
+            # TODO: handle login by credentials
+            self.api.anonymous_login()
 
-        self.conf.auth_token = request.json()["accessToken"]
 
     def make_custom_config(self, scenario):
         self.user_io.handle_basic_output(
@@ -313,177 +730,92 @@ class AiDungeonV2(AbstractAiDungeon):
 
 
     def choose_config(self):
-        # Get the configuration for this session
-        r = self.session.get("https://" + self.api_dn + "/scenario/" + str(self.scenario_id) + "/options")
-        r.raise_for_status()
-        response = r.json()
-        if DEBUG:
-            pprint(response)
+        self.api.perform_init_handshake()
 
-        print("Pick a setting...\n")
+        ## SETTING SELECTION
 
-        mode_select_dict = {}
-        for i, opts in enumerate(response, start=1):
-            mode = opts['adventure']['title']
-            print(str(i) + ") " + mode)
-            mode_select_dict[str(i)] = mode
-            mode_select_dict['0'] = '0' # secret mode
-        selected_mode_i = self.choose_selection(mode_select_dict, 'k')
-        selected_mode = mode_select_dict[selected_mode_i]
-        selected_mode_opts = response[int(selected_mode_i) - 1]
-        selected_mode_scenario_id = selected_mode_opts['adventure']['id']
+        prompt, settings = self.api.get_settings_single_player()
 
-        # If the custom option was selected load the custom configuration and don't continue this configuration
-        if selected_mode == "custom":
-            # NB: could have used 'adventure' instead of 'scenario'
-            self.make_custom_config(selected_mode_opts['scenario'])
-        elif selected_mode == "madlib":
+        print(prompt + "\n")
+
+        setting_select_dict = {}
+        for i, setting in settings.items():
+            setting_id, setting_name = setting
+            print(str(i) + ") " + setting_name)
+            setting_select_dict[str(i)] = setting_name
+            # setting_select_dict['0'] = '0' # secret mode
+        selected_i = self.choose_selection(setting_select_dict, 'k')
+        setting_id, setting_name = settings[selected_i]
+        self.api.scenario_id = setting_id # TODO: create a setter instead
+
+        if setting_name == "custom":
+            print('Not yet supported, sorry')
+            exit(3)
+            # If the custom option was selected load the custom configuration and don't continue this configuration
+        #     self.make_custom_config(selected_mode_opts['scenario'])
+        elif setting_name == "archive":
             print('Not yet supported, sorry')
             exit(3)
 
-        elif selected_mode == "archive":
-            print('Not yet supported, sorry')
-            exit(3)
 
-            print(selected_mode_opts['scenario']['prompt'])
-            print()
-            rq = {
-                "operationName": None,
-                "variables": {
-                    "id": selected_mode_opts['scenario']['id']
-                },
-                "query": "query ($id: String) {\n  user {\n    id\n    verifiedAt\n    gameSettings {\n      id\n      textSpeed\n      textColor\n      textSize\n      textFont\n      __typename\n    }\n    __typename\n  }\n  scenario(id: $id) {\n    id\n    title\n    description\n    prompt\n    memory\n    tags\n    nsfw\n    published\n    options {\n      id\n      title\n      __typename\n    }\n    __typename\n  }\n}\n"
-            }
-            if DEBUG:
-                pprint(rq)
-            r = self.session.post("https://" + self.api_dn + "/graphql", json=rq)
-            r.raise_for_status()
-            settings_response = r.json()
-            settings = settings_response['data']['scenario']['options']
-            if DEBUG:
-                pprint(settings)
-            setting_select_dict = {}
-            for i, opts in enumerate(settings, start=1):
-                setting = opts['title']
-                print(str(i) + ") " + setting)
-                setting_select_dict[str(i)] = setting
-            selected_setting_i = self.choose_selection(setting_select_dict, 'k')
-            selected_setting = setting_select_dict[selected_setting_i]
-            selected_setting_opts = settings[int(selected_setting_i) - 1]
+        ## CHARACTER SELECTION
 
-            rq = {
-                "operationName": None,
-                "variables": {
-                    "id": selected_setting_opts['id']
-                },
-                "query": "query ($id: String) {\n  user {\n    id\n    verifiedAt\n    gameSettings {\n      id\n      textSpeed\n      textColor\n      textSize\n      textFont\n      __typename\n    }\n    __typename\n  }\n  scenario(id: $id) {\n    id\n    title\n    description\n    prompt\n    memory\n    tags\n    nsfw\n    published\n    options {\n      id\n      title\n      __typename\n    }\n    __typename\n  }\n}\n"
-            }
-            if DEBUG:
-                pprint(rq)
-            r = self.session.post("https://" + self.api_dn + "/graphql", json=rq)
-            r.raise_for_status()
-            characters_response = r.json()
-            characters = characters_response['data']['scenario']['options']
-            if DEBUG:
-                pprint(settings)
-            character_select_dict = {}
-            for i, opts in enumerate(characters, start=1):
-                character = opts['title']
-                print(str(i) + ") " + character)
-                character_select_dict[str(i)] = character
-            selected_character_i = self.choose_selection(character_select_dict, 'k')
-            selected_character = character_select_dict[selected_character_i]
-            selected_character_opts = characters[int(selected_character_i) - 1]
+        prompt, characters = self.api.get_characters()
 
-            # {"operationName":null,"variables":{"id":"387253"},"query":"query ($id: String) {\n  user {\n    id\n    verifiedAt\n    gameSettings {\n      id\n      textSpeed\n      textColor\n      textSize\n      textFont\n      __typename\n    }\n    __typename\n  }\n  scenario(id: $id) {\n    id\n    title\n    description\n    prompt\n    memory\n    tags\n    nsfw\n    published\n    options {\n      id\n      title\n      __typename\n    }\n    __typename\n  }\n}\n"}
+        print(prompt + "\n")
 
-        else:
-            print("Select a character...\n")
+        character_select_dict = {}
+        for i, character in characters.items():
+            character_id, character_type = character
+            print(str(i) + ") " + character_type)
+            character_select_dict[str(i)] = character_type
+        selected_i = self.choose_selection(character_select_dict, 'k')
+        character_id, character_type = characters[selected_i]
+        self.api.character_id = character_id # TODO: create a setter instead
 
-            r = self.session.get("https://" + self.api_dn + "/scenario/" + str(selected_mode_scenario_id) + "/options")
-            r.raise_for_status()
-            character_select_response = r.json()
+        print("Enter your character's name...\n")
 
-            character_select_dict = {}
-            for i, opts in enumerate(
-                    character_select_response, start=1
-            ):
-                character = opts['adventure']['title']
-                print(str(i) + ") " + character)
-                character_select_dict[str(i)] = character
-            selected_character_i = self.choose_selection(character_select_dict, 'k')
-            selected_character = character_select_dict[selected_character_i]
-            selected_opts = character_select_response[int(selected_character_i) - 1]['adventure']
-            selected_prompt = selected_opts['content']
-            selected_music_theme = selected_opts['musicTheme']
+        character_name = self.user_io.handle_user_input()
 
-            print("Enter your character's name...\n")
+        if character_name == "/quit":
+            raise QuitSession("/quit")
 
-            character_name = self.user_io.handle_user_input()
+        self.api.character_name = character_name # TODO: create a setter instead
 
-            if character_name == "/quit":
-                raise QuitSession("/quit")
+        ## PITCH
 
-            self.story_configuration = {
-                "title": selected_character,
-                "musicTheme": selected_music_theme,
-                "platform":"web"
-            }
-            self.story_pitch = selected_prompt.replace('${character.name}', character_name)
+        self.api.get_story_for_scenario()
+        self.api.set_story_pitch()
+
 
     # Initialize story
     def init_story(self):
         print("Generating story... Please wait...\n")
 
-        r = self.session.post(
-            "https://" + self.api_dn + "/user/adventure/", json=self.story_configuration
-        )
-        r.raise_for_status()
-        session_response = r.json()
-        self.user_id = session_response['userId']
-        self.session_id = session_response['id']
-        self.public_id = session_response["publicId"]
-
-        story_init_payload = {
-            "input": self.story_pitch,
-            "newFormatting": True,
-            "platform": "web"
-        }
-        r = self.session.post(
-            "https://" + self.api_dn + "/user/adventure/" + str(self.session_id) + "/action/progress", json=story_init_payload
-        )
-        r.raise_for_status()
-        if r.text != 'OK':
-            # TODO: handle this
-            pass
-        r = self.session.get("https://" + self.api_dn + "/user/adventure/" + str(self.session_id))
-        r.raise_for_status()
-        story_response = r.json()
-        story_elem = story_response['history'][0]
-        story_pitch = story_elem['input'] + story_elem['output']
-        self.user_io.handle_story_output(story_pitch)
+        self.api.init_story()
+        self.user_io.handle_story_output(self.api.story_pitch)
 
 
     def find_action_type(self, user_input: str):
         user_input = user_input.strip()
-        action = 'Do'
+        action = 'do'
         if user_input == '':
             return (action, user_input)
         elif user_input.lower().startswith('/do '):
             user_input = user_input[len('/do '):]
-            action = 'Do'
+            action = 'do'
         elif user_input.lower().startswith('/say '):
             user_input = user_input[len('/say '):]
-            action = 'Say'
+            action = 'say'
         elif user_input.lower().startswith('/story '):
             user_input = user_input[len('/story '):]
-            action = 'Story'
+            action = 'story'
         elif user_input.lower().startswith('you say "') and user_input[-1] == '"':
             user_input = user_input[len('you say "'):-1]
-            action = 'Say'
+            action = 'say'
         elif user_input[0] == '"' and user_input[-1] == '"':
             user_input = user_input[1:-1]
-            action = 'Say'
+            action = 'say'
         return (action, user_input)
 
 
@@ -492,30 +824,10 @@ class AiDungeonV2(AbstractAiDungeon):
 
         (action, user_input) = self.find_action_type(user_input)
 
-        rq = {
-            "input": user_input,
-            "inputType": action,
-            "newFormatting": True,
-            "platform": "web"
-        }
-        if DEBUG:
-            pprint(rq)
-        r = self.session.post(
-            "https://" + self.api_dn + "/user/adventure/" + str(self.session_id) + "/action/progress",
-            json=rq,
-        )
-        r.raise_for_status()
-        if r.text != 'OK':
-            # TODO: handle this
-            pass
-        r = self.session.get("https://" + self.api_dn + "/user/adventure/" + str(self.session_id))
-        r.raise_for_status()
-        story_response = r.json()
-        story_elem = story_response['history'][-1]
-        if DEBUG:
-            pprint(story_elem)
-        story_pitch = story_elem['output']
-        self.user_io.handle_story_output(story_pitch)
+        # resp = self.api.perform_regular_action(action, user_input)
+        resp = asyncio.run(self.api.perform_regular_action(action, user_input))
+
+        self.user_io.handle_story_output(resp)
 
     def process_remember_action(self, user_input: str):
         rq = {
@@ -562,17 +874,13 @@ def main():
         else:
             term_io = TermIoSlowStory(conf.prompt)
 
+        api_client = AiDungeonApiClient()
+
         # Initialize the AiDungeon class with the given auth_token and prompt
-        # ai_dungeon = AiDungeon(conf, term_io)
-        ai_dungeon = AiDungeonV2(conf, term_io, api_dn='ai-dungeon-api.herokuapp.com')
-        # ai_dungeon = AiDungeonV2(conf, term_io)
+        ai_dungeon = AiDungeonV2(api_client, conf, term_io)
 
-        # Login if necessary
-        if not ai_dungeon.get_auth_token():
-            ai_dungeon.login()
-
-        # Update the session authentication token
-        ai_dungeon.update_session_auth()
+        # Login
+        ai_dungeon.login()
 
         # Clears the console
         term_io.clear()
@@ -586,6 +894,8 @@ def main():
 
         # Initializes the story
         ai_dungeon.init_story()
+
+        # exit()
 
         # Starts the game
         ai_dungeon.start_game()
