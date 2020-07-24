@@ -29,8 +29,8 @@ from pprint import pprint
 # -------------------------------------------------------------------------
 # CONF
 
-DEBUG = False
-# DEBUG = True
+# DEBUG = False
+DEBUG = True
 
 def debug_print(msg):
     if DEBUG:
@@ -55,7 +55,6 @@ class AiDungeonApiClient:
 
         self.single_player_mode_id: str = 'scenario:458612'
         self.scenario_id: str = '' # REVIEW: maybe call it setting_id ?
-        self.character_id: str = ''
         self.character_name: str = ''
         self.story_pitch_template: str = ''
         self.story_pitch: str = ''
@@ -154,29 +153,34 @@ class AiDungeonApiClient:
         return settings_dict
 
 
-    def get_settings_single_player(self):
+    def get_options(self, scenario_id):
         prompt = ''
-        settings = {}
+        options = None
 
-        debug_print("query settings singleplayer (variant #1)")
+        debug_print("query options (variant #1)")
         result = self._execute_query('''
         query ($id: String) {  user {    id    username    __typename  }  content(id: $id) {    id    userId    contentType    contentId    prompt    gameState    options {      id      title      __typename    }    playPublicId    __typename  }}
         ''',
-                                     {"id": self.single_player_mode_id})
+                                     {"id": scenario_id})
         debug_print(result)
         prompt = result['content']['prompt']
-        settings = self.normalize_options(result['content']['options'])
+        if result['content']['options']:
+            options = self.normalize_options(result['content']['options'])
 
-        # debug_print("query settings singleplayer (variant #2)")
+        # debug_print("query options (variant #2)")
         # result = self._execute_query('''
         # query ($id: String) {  content(id: $id) {    id    contentType    contentId    title    description    prompt    memory    tags    nsfw    published    createdAt    updatedAt    deletedAt    options {      id      title      __typename    }    __typename  }}
         # ''',
-        #                              {"id": self.single_player_mode_id})
+        #                              {"id": scenario_id})
         # debug_print(result)
         # prompt = result['content']['prompt']
-        # settings = self.normalize_options(result['content']['options'])
+        # options = self.normalize_options(result['content']['options'])
 
-        return [prompt, settings]
+        return [prompt, options]
+
+
+    def get_settings_single_player(self):
+        return self.get_options(self.single_player_mode_id)
 
 
     def get_characters(self):
@@ -210,7 +214,7 @@ class AiDungeonApiClient:
         result = self._execute_query('''
         query ($id: String) {  user {    id    username    __typename  }  content(id: $id) {    id    userId    contentType    contentId    prompt    gameState    options {      id      title      __typename    }    playPublicId    __typename  }}
         ''',
-                                     {"id": self.character_id})
+                                     {"id": self.scenario_id})
         debug_print(result)
         self.story_pitch_template = result['content']['prompt']
 
@@ -270,7 +274,7 @@ class AiDungeonApiClient:
 
     def init_story(self):
 
-        self._create_adventure(self.character_id)
+        self._create_adventure(self.scenario_id)
 
         debug_print("get created adventure ids")
         result = self._execute_query('''
@@ -608,12 +612,23 @@ class AiDungeonV2(AbstractAiDungeon):
                 self.api.anonymous_login()
 
 
+    def _choose_character_name(self):
+        print("Enter your character's name...\n")
+
+        character_name = self.user_io.handle_user_input()
+
+        if character_name == "/quit":
+            raise QuitSession("/quit")
+
+        self.api.character_name = character_name # TODO: create a setter instead
+
+
     def choose_config(self):
         # self.api.perform_init_handshake()
 
         ## SETTING SELECTION
 
-        prompt, settings = self.api.get_settings_single_player()
+        prompt, settings = self.api.get_options(self.api.single_player_mode_id)
 
         print(prompt + "\n")
 
@@ -630,8 +645,26 @@ class AiDungeonV2(AbstractAiDungeon):
         if self.setting_name == "custom":
             return
         elif self.setting_name == "archive":
-            print('Not yet supported, sorry')
-            exit(3)
+            while True:
+                prompt, options = self.api.get_options(self.api.scenario_id)
+
+                if options is None:
+                    self.api.story_pitch_template = prompt
+                    self._choose_character_name()
+                    self.api.set_story_pitch()
+                    return
+
+                print(prompt + "\n")
+
+                select_dict = {}
+                for i, option in options.items():
+                    option_id, option_name = option
+                    print(str(i) + ") " + option_name)
+                    select_dict[str(i)] = option_name
+                    # setting_select_dict['0'] = '0' # secret mode
+                selected_i = self.choose_selection(select_dict, 'k')
+                option_id, option_name = options[selected_i]
+                self.api.scenario_id = option_id # TODO: create a setter instead
 
 
         ## CHARACTER SELECTION
@@ -647,16 +680,9 @@ class AiDungeonV2(AbstractAiDungeon):
             character_select_dict[str(i)] = character_type
         selected_i = self.choose_selection(character_select_dict, 'k')
         character_id, character_type = characters[selected_i]
-        self.api.character_id = character_id # TODO: create a setter instead
+        self.api.scenario_id = character_id # TODO: create a setter instead
 
-        print("Enter your character's name...\n")
-
-        character_name = self.user_io.handle_user_input()
-
-        if character_name == "/quit":
-            raise QuitSession("/quit")
-
-        self.api.character_name = character_name # TODO: create a setter instead
+        self._choose_character_name()
 
         ## PITCH
 
