@@ -29,8 +29,8 @@ from pprint import pprint
 # -------------------------------------------------------------------------
 # CONF
 
-# DEBUG = False
-DEBUG = True
+DEBUG = False
+# DEBUG = True
 
 def debug_print(msg):
     if DEBUG:
@@ -40,37 +40,6 @@ def debug_pprint(msg):
     if DEBUG:
         print(msg)
 
-
-async def test_async(access_token, adventure_id):
-    transport = WebsocketsTransport(url='wss://api.aidungeon.io/subscriptions',
-                                    init_payload={'token': access_token})
-
-    # Using `async with` on the client will start a connection on the transport
-    # and provide a `session` variable to execute queries on this connection
-    async with Client(
-            transport=transport,
-            fetch_schema_from_transport=True,
-    ) as session:
-
-        # # Execute single query
-        # query = gql('''
-        #     subscription subscribeContent($id: String) {  subscribeContent(id: $id) {    id    historyList    quests    error    memory    mode    died    actionLoading    characters {      id      userId      name      __typename    }    gameState    thirdPerson    __typename  }}
-        # ''')
-        # result = await session.execute(query)
-        # print(result)
-
-        # Request subscription
-        subscription = gql('''
-            subscription subscribeContent($id: String) {  subscribeContent(id: $id) {    id    historyList    quests    error    memory    mode    died    actionLoading    characters {      id      userId      name      __typename    }    gameState    thirdPerson    __typename  }}
-        ''')
-        subscription_params = {
-            "id": adventure_id
-        }
-
-        async for result in session.subscribe(subscription,
-                                              variable_values=subscription_params):
-            debug_print("got response")
-            debug_print(result)
 
 # -------------------------------------------------------------------------
 # API CLIENT ABSCTRACTION
@@ -95,6 +64,18 @@ class AiDungeonApiClient:
         self.quests: str = ''
 
 
+    async def _execute_query_pseudo_async(self, query, params={}):
+        async with Client(
+                transport=self.websocket,
+                fetch_schema_from_transport=True,
+        ) as session:
+            return await session.execute(gql(query), variable_values=params)
+
+
+    def _execute_query(self, query, params=None):
+        return self.gql_client.execute(gql(query), variable_values=params)
+
+
     def update_session_access_token(self, access_token):
         self.websocket = WebsocketsTransport(
             url=self.url,
@@ -104,64 +85,47 @@ class AiDungeonApiClient:
 
 
     def anonymous_login(self):
-        query_createAnonymousAccount = gql('''
+        debug_print("anonymous login")
+        result = self._execute_query('''
         mutation {  createAnonymousAccount {    id    accessToken    __typename  }}
         ''')
+        debug_print(result)
+        self.account_id = result['createAnonymousAccount']['id']
+        self.access_token = result['createAnonymousAccount']['accessToken']
+        self.update_session_access_token(self.access_token)
 
-        debug_print("anonymous login")
-
-        for result in self.gql_client.subscribe(query_createAnonymousAccount):
-            debug_print(result)
-            # {'createAnonymousAccount': {'id': '3702934', 'accessToken': '1bcd84f0-c928-11ea-bdd8-8f34389fa8e1', '__typename': 'User'}}
-            self.account_id = result['createAnonymousAccount']['id']
-            self.access_token = result['createAnonymousAccount']['accessToken']
-            self.update_session_access_token(self.access_token)
 
 
     def perform_init_handshake(self):
-        query_user_details = gql('''
-        {  user {    id    isDeveloper    hasPremium    lastAdventure {      id      mode      __typename    }    newProductUpdates {      id      title      description      createdAt      __typename    }    __typename  }}
-        ''')
+        # debug_print("query user details")
+        # result = self._execute_query('''
+        # {  user {    id    isDeveloper    hasPremium    lastAdventure {      id      mode      __typename    }    newProductUpdates {      id      title      description      createdAt      __typename    }    __typename  }}
+        # ''')
+        # debug_print(result)
 
-        debug_print("query user details")
-
-        # for result in self.gql_client.subscribe(query_user_details):
-        #     debug_print(result)
-            # {'user': {'id': '3703691', 'isDeveloper': False, 'hasPremium': False, 'lastAdventure': None, 'newProductUpdates': [], '__typename': 'User'}}
-
-        query_addDeviceToken = gql('''
-        mutation ($token: String, $platform: String) {  addDeviceToken(token: $token, platform: $platform)}
-        ''')
-        query_params_register_token = { 'token': 'web',
-                                        'platform': 'web' }
 
         debug_print("add device token")
+        result = self._execute_query('''
+        mutation ($token: String, $platform: String) {  addDeviceToken(token: $token, platform: $platform)}
+        ''',
+                                     { 'token': 'web',
+                                       'platform': 'web' })
+        debug_print(result)
 
-        for result in self.gql_client.subscribe(
-                query_addDeviceToken,
-                variable_values=query_params_register_token):
-            debug_print(result)
-            # {'addDeviceToken': True}
-
-        query_sendEvent_startPremium = gql('''
-        mutation ($input: EventInput) {  sendEvent(input: $input)}
-        ''')
-        query_params_sendEvent_startPremium = {
-            "input": {
-                "eventName":"start_premium_v5",
-                "variation":"dont",
-                # "variation":"show",
-                "platform":"web"
-            }
-        }
 
         debug_print("send event start premium")
-
-        # for result in self.gql_client.subscribe(
-        #         query_sendEvent_startPremium,
-        #         variable_values=query_params_sendEvent_startPremium):
-        #     debug_print(result)
-        #     # {'sendEvent': True}
+        result = self._execute_query('''
+        mutation ($input: EventInput) {  sendEvent(input: $input)}
+        ''',
+                                     {
+                                         "input": {
+                                             "eventName":"start_premium_v5",
+                                             "variation":"dont",
+                                             # "variation":"show",
+                                             "platform":"web"
+                                         }
+                                     })
+        debug_print(result)
 
 
     @staticmethod
@@ -178,37 +142,23 @@ class AiDungeonApiClient:
         prompt = ''
         settings = {}
 
-        # NB: the 2 queries are basically requesting for the same thing, i.e. to get the menu of possible scenarios
-        # they get slightly differents vars
-        # I guess they're transitioning from one query to the other, but it's strange that a given version of the client performs both ?!
-
-        query_singlePlayer = gql('''
+        debug_print("query settings singleplayer (variant #1)")
+        result = self._execute_query('''
         query ($id: String) {  user {    id    username    __typename  }  content(id: $id) {    id    userId    contentType    contentId    prompt    gameState    options {      id      title      __typename    }    playPublicId    __typename  }}
-        ''')
-        query_params_singlePlayer = {"id": self.single_player_mode_id}
+        ''',
+                                     {"id": self.single_player_mode_id})
+        debug_print(result)
+        prompt = result['content']['prompt']
+        settings = self.normalize_options(result['content']['options'])
 
-        debug_print("query_singleplayer_1")
-
-        for result in self.gql_client.subscribe(
-                query_singlePlayer,
-                variable_values=query_params_singlePlayer):
-            debug_print(result)
-            prompt = result['content']['prompt']
-            settings = self.normalize_options(result['content']['options'])
-
-        query_singlePlayer2 = gql('''
-        query ($id: String) {  content(id: $id) {    id    contentType    contentId    title    description    prompt    memory    tags    nsfw    published    createdAt    updatedAt    deletedAt    options {      id      title      __typename    }    __typename  }}
-        ''')
-        query_params_singlePlayer2 = {"id": self.single_player_mode_id}
-
-        debug_print("query_singleplayer_2")
-
-        for result in self.gql_client.subscribe(
-                query_singlePlayer2,
-                variable_values=query_params_singlePlayer2):
-            debug_print(result)
-            # prompt = result['content']['prompt']
-            # settings = self.normalize_options(result['content']['options'])
+        # debug_print("query settings singleplayer (variant #2)")
+        # result = self._execute_query('''
+        # query ($id: String) {  content(id: $id) {    id    contentType    contentId    title    description    prompt    memory    tags    nsfw    published    createdAt    updatedAt    deletedAt    options {      id      title      __typename    }    __typename  }}
+        # ''',
+        #                              {"id": self.single_player_mode_id})
+        # debug_print(result)
+        # prompt = result['content']['prompt']
+        # settings = self.normalize_options(result['content']['options'])
 
         return [prompt, settings]
 
@@ -217,58 +167,43 @@ class AiDungeonApiClient:
         prompt = ''
         characters = {}
 
-        query = gql('''
+        debug_print("query settings singleplayer (variant #1)")
+        result = self._execute_query('''
         query ($id: String) {  user {    id    username    __typename  }  content(id: $id) {    id    userId    contentType    contentId    prompt    gameState    options {      id      title      __typename    }    playPublicId    __typename  }}
-        ''')
-        query_params = {"id": self.scenario_id}
+        ''',
+                                     {"id": self.scenario_id})
+        debug_print(result)
+        prompt = result['content']['prompt']
+        characters = self.normalize_options(result['content']['options'])
 
-        debug_print("query character select prompt")
-
-        for result in self.gql_client.subscribe(query,
-                                                variable_values=query_params):
-            debug_print(result)
-            prompt = result['content']['prompt']
-            characters = self.normalize_options(result['content']['options'])
-
-        query_2 = gql('''
-        query ($id: String) {  content(id: $id) {    id    contentType    contentId    title    description    prompt    memory    tags    nsfw    published    createdAt    updatedAt    deletedAt    options {      id      title      __typename    }    __typename  }}
-        ''')
-        query_params_2 = {"id": self.scenario_id}
-
-        debug_print("query character select prompt 2")
-
-        for result in self.gql_client.subscribe(query_2,
-                                                variable_values=query_params_2):
-            debug_print(result)
-            # prompt = result['content']['prompt']
-            # characters = self.normalize_options(result['content']['options'])
+        # debug_print("query settings singleplayer (variant #2)")
+        # result = self._execute_query('''
+        # query ($id: String) {  content(id: $id) {    id    contentType    contentId    title    description    prompt    memory    tags    nsfw    published    createdAt    updatedAt    deletedAt    options {      id      title      __typename    }    __typename  }}
+        # ''',
+        #                              {"id": self.scenario_id})
+        # debug_print(result)
+        # prompt = result['content']['prompt']
+        # characters = self.normalize_options(result['content']['options'])
 
         return [prompt, characters]
 
 
     def get_story_for_scenario(self):
-        query = gql('''
-        query ($id: String) {  user {    id    username    __typename  }  content(id: $id) {    id    userId    contentType    contentId    prompt    gameState    options {      id      title      __typename    }    playPublicId    __typename  }}
-        ''')
-        query_params = {"id": self.character_id}
 
         debug_print("query get story for scenario")
+        result = self._execute_query('''
+        query ($id: String) {  user {    id    username    __typename  }  content(id: $id) {    id    userId    contentType    contentId    prompt    gameState    options {      id      title      __typename    }    playPublicId    __typename  }}
+        ''',
+                                     {"id": self.character_id})
+        debug_print(result)
+        self.story_pitch_template = result['content']['prompt']
 
-        for result in self.gql_client.subscribe(query,
-                                                variable_values=query_params):
-            debug_print(result)
-            self.story_pitch_template = result['content']['prompt']
-
-        query_2 = gql('''
-        query ($id: String) {  content(id: $id) {    id    contentType    contentId    title    description    prompt    memory    tags    nsfw    published    createdAt    updatedAt    deletedAt    options {      id      title      __typename    }    __typename  }}
-        ''')
-        query_params_2 = {"id": self.scenario_id}
-
-        debug_print("query get story for scenario 2")
-
-        for result in self.gql_client.subscribe(query_2,
-                                                variable_values=query_params_2):
-            debug_print(result)
+        # debug_print("query get story for scenario #2")
+        # result = self._execute_query('''
+        # query ($id: String) {  content(id: $id) {    id    contentType    contentId    title    description    prompt    memory    tags    nsfw    published    createdAt    updatedAt    deletedAt    options {      id      title      __typename    }    __typename  }}
+        # ''',
+        #                              {"id": self.scenario_id})
+        # debug_print(result)
 
 
     @staticmethod
@@ -286,42 +221,35 @@ class AiDungeonApiClient:
 
 
     def init_story(self):
-        query = gql('''
+
+        debug_print("create adventure")
+        result = self._execute_query('''
         mutation ($id: String, $prompt: String) {  createAdventureFromScenarioId(id: $id, prompt: $prompt) {    id    contentType    contentId    title    description    musicTheme    tags    nsfw    published    createdAt    updatedAt    deletedAt    publicId    historyList    __typename  }}
-        ''')
-        query_params = {
-            "id": self.character_id,
-            "prompt": self.story_pitch
-        }
+        ''',
+                                     {
+                                         "id": self.character_id,
+                                         "prompt": self.story_pitch
+                                     })
+        debug_print(result)
+        self.adventure_id = result['createAdventureFromScenarioId']['id']
+        self.story_pitch = self.initial_story_from_history_list(result['createAdventureFromScenarioId']['historyList'])
 
-        debug_print("init story")
-
-        for result in self.gql_client.subscribe(query,
-                                                variable_values=query_params):
-            debug_print(result)
-            self.adventure_id = result['createAdventureFromScenarioId']['id']
-            self.story_pitch = self.initial_story_from_history_list(result['createAdventureFromScenarioId']['historyList'])
-
-        query_2 = gql('''
+        debug_print("get created adventure ids")
+        result = self._execute_query('''
         query ($id: String, $playPublicId: String) {  content(id: $id, playPublicId: $playPublicId) {    id    historyList    quests    playPublicId    userId    __typename  }}
-        ''')
-        query_params_2 = {
-            "id": self.adventure_id,
-        }
-
-        debug_print("init story 2")
-
-        for result in self.gql_client.subscribe(query_2,
-                                                variable_values=query_params_2):
-            debug_print(result)
-            self.quests = result['content']['quests']
-            self.public_id = result['content']['playPublicId']
-            # self.story_pitch = self.initial_story_from_history_list(result['content']['historyList'])
+        ''',
+                                     {
+                                         "id": self.adventure_id,
+                                     })
+        debug_print(result)
+        self.quests = result['content']['quests']
+        self.public_id = result['content']['playPublicId']
+        # self.story_pitch = self.initial_story_from_history_list(result['content']['historyList'])
 
 
-    def perform_regular_action_sync(self, action, user_input):
+    def perform_regular_action(self, action, user_input):
 
-        test_async(self.access_token, self.adventure_id)
+        story_continuation = ""
 
         # click button event
         query = gql('''
@@ -359,78 +287,29 @@ class AiDungeonApiClient:
             debug_print(result)
 
         query_get_story = gql('''
-        subscription subscribeContent($id: String) {  subscribeContent(id: $id) {    id    historyList    quests    error    memory    mode    died    actionLoading    characters {      id      userId      name      __typename    }    gameState    thirdPerson    __typename  }}
+        query ($id: String, $playPublicId: String) {
+            content(id: $id, playPublicId: $playPublicId) {
+                id
+                actions {
+                    id
+                    text
+                }
+            }
+        }
         ''')
         query_params_get_story = {
             "id": self.adventure_id
         }
 
-        # debug_print("get response")
+        debug_print("get response")
 
-        # for result in self.gql_client.subscribe(query_get_story,
-        #                                         variable_values=query_params_get_story):
-        #     debug_print(result)
-
-
-        return 'cont'
-
-
-    async def perform_regular_action(self, action, user_input):
-        transport = WebsocketsTransport(url='wss://api.aidungeon.io/subscriptions',
-                                        init_payload={'token': self.access_token})
-        async with Client(
-                transport=transport,
-                fetch_schema_from_transport=True,
-        ) as session:
-            subscription = gql('''
-            subscription subscribeContent($id: String) {  subscribeContent(id: $id) {    id    historyList    quests    error    memory    mode    died    actionLoading    characters {      id      userId      name      __typename    }    gameState    thirdPerson    __typename  }}
-        ''')
-            subscription_params = {
-                "id": self.adventure_id
-            }
-
-            async for result in session.subscribe(subscription,
-                                                  variable_values=subscription_params):
-                debug_print("got response")
-                debug_print(result)
-
-            # click button event
-            query = gql('''
-            mutation ($input: EventInput) {  sendEvent(input: $input)}
-            ''')
-            query_params = {
-                "input": {
-                    "eventName": "submit_button_clicked",
-                    "platform":"web"
-                }
-            }
-
-            debug_print("click button send action")
-            result = await session.execute(query,
-                                           variable_values=query_params)
+        for result in self.gql_client.subscribe(query_get_story,
+                                                variable_values=query_params_get_story):
             debug_print(result)
+            story_continuation = result['content']['actions'][-1]['text']
 
-            query_send = gql('''
-            mutation ($input: ContentActionInput) {  sendAction(input: $input) {    id    actionLoading    memory    died    gameState    __typename  }}
-        ''')
-            query_params_send = {
-                "input": {
-                    "type": action,
-                    "text": user_input,
-                    "id": self.adventure_id
-                }
-            }
+        return story_continuation
 
-            debug_print("send regular action")
-            result = await session.execute(query,
-                                           variable_values=query_params)
-            debug_print(result)
-
-        for result in self.gql_client.subscribe(query_send,
-                                                variable_values=query_params_send):
-            debug_print(result)
-
-        return 'cont'
 
 # -------------------------------------------------------------------------
 # TEST
@@ -730,7 +609,7 @@ class AiDungeonV2(AbstractAiDungeon):
 
 
     def choose_config(self):
-        self.api.perform_init_handshake()
+        # self.api.perform_init_handshake()
 
         ## SETTING SELECTION
 
@@ -824,8 +703,8 @@ class AiDungeonV2(AbstractAiDungeon):
 
         (action, user_input) = self.find_action_type(user_input)
 
-        # resp = self.api.perform_regular_action(action, user_input)
-        resp = asyncio.run(self.api.perform_regular_action(action, user_input))
+        resp = self.api.perform_regular_action(action, user_input)
+        # resp = asyncio.run(self.api.perform_regular_action_async(action, user_input))
 
         self.user_io.handle_story_output(resp)
 
@@ -908,6 +787,9 @@ def main():
 
     except QuitSession:
         term_io.handle_basic_output("Bye Bye!")
+
+    except EOFError:
+        term_io.handle_basic_output("Received Keyboard Interrupt. Bye Bye...")
 
     except KeyboardInterrupt:
         term_io.handle_basic_output("Received Keyboard Interrupt. Bye Bye...")
