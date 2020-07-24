@@ -283,42 +283,23 @@ class AiDungeonApiClient:
 
         story_continuation = ""
 
-        # click button event
-        query = gql('''
-        mutation ($input: EventInput) {  sendEvent(input: $input)}
-        ''')
-        query_params = {
-            "input": {
-                "eventName": "submit_button_clicked",
-                "platform":"web"
-            }
-        }
-
-        debug_print("click button send action")
-
-        # for result in self.gql_client.subscribe(query,
-        #                                         variable_values=query_params):
-        #     debug_print(result)
-
-
-        query_send = gql('''
-        mutation ($input: ContentActionInput) {  sendAction(input: $input) {    id    actionLoading    memory    died    gameState    __typename  }}
-        ''')
-        query_params_send = {
-            "input": {
-                "type": action,
-                "text": user_input,
-                "id": self.adventure_id
-            }
-        }
 
         debug_print("send regular action")
+        result = self._execute_query('''
+        mutation ($input: ContentActionInput) {  sendAction(input: $input) {    id    actionLoading    memory    died    gameState    __typename  }}
+        ''',
+                                     {
+                                         "input": {
+                                             "type": action,
+                                             "text": user_input,
+                                             "id": self.adventure_id
+                                         }
+                                     })
+        debug_print(result)
 
-        for result in self.gql_client.subscribe(query_send,
-                                                variable_values=query_params_send):
-            debug_print(result)
 
-        query_get_story = gql('''
+        debug_print("get story continuation")
+        result = self._execute_query('''
         query ($id: String, $playPublicId: String) {
             content(id: $id, playPublicId: $playPublicId) {
                 id
@@ -328,17 +309,12 @@ class AiDungeonApiClient:
                 }
             }
         }
-        ''')
-        query_params_get_story = {
-            "id": self.adventure_id
-        }
-
-        debug_print("get response")
-
-        for result in self.gql_client.subscribe(query_get_story,
-                                                variable_values=query_params_get_story):
-            debug_print(result)
-            story_continuation = result['content']['actions'][-1]['text']
+        ''',
+                                     {
+                                         "id": self.adventure_id
+                                     })
+        debug_print(result)
+        story_continuation = result['content']['actions'][-1]['text']
 
         return story_continuation
 
