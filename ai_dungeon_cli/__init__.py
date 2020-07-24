@@ -344,24 +344,6 @@ class AiDungeonApiClient:
 
 
 # -------------------------------------------------------------------------
-# TEST
-
-# api_client = AiDungeonApiClient()
-
-# api_client.anonymous_login()
-# api_client.perform_init_handshake()
-# api_client.get_settings_single_player()
-# api_client.scenario_id = 'scenario:458617'
-# api_client.get_characters()
-# api_client.character_id = 'scenario:458627'
-# api_client.character_name = 'Arnold'
-# api_client.get_story_for_scenario()
-# api_client.set_story_pitch()
-# api_client.init_story()
-# debug_print(api_client.story_pitch)
-# exit()
-
-# -------------------------------------------------------------------------
 # EXCEPTIONS
 
 class FailedConfiguration(Exception):
