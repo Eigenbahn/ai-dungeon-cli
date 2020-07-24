@@ -49,7 +49,8 @@ class AiDungeonApiClient:
         self.url: str = 'wss://api.aidungeon.io/subscriptions'
         self.websocket = WebsocketsTransport(url=self.url)
         self.gql_client = Client(transport=self.websocket,
-                                 fetch_schema_from_transport=True)
+                                 # fetch_schema_from_transport=True,
+        )
         self.account_id: str = ''
         self.access_token: str = ''
 
@@ -66,7 +67,7 @@ class AiDungeonApiClient:
     async def _execute_query_pseudo_async(self, query, params={}):
         async with Client(
                 transport=self.websocket,
-                fetch_schema_from_transport=True,
+                # fetch_schema_from_transport=True,
         ) as session:
             return await session.execute(gql(query), variable_values=params)
 
@@ -80,7 +81,8 @@ class AiDungeonApiClient:
             url=self.url,
             init_payload={'token': access_token})
         self.gql_client = Client(transport=self.websocket,
-                                 fetch_schema_from_transport=True)
+                                 # fetch_schema_from_transport=True,
+        )
 
 
     def user_login(self, email, password):
