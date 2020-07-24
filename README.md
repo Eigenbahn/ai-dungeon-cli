@@ -61,6 +61,7 @@ For example, the previous `Say` prompt could also be written:
 
     > /say Hey dragon! You didn't invite me to the latest BBQ party!
 
+To quit, either press `Ctrl-C`, `Ctrl-D` or type in the special `/quit` command.
 
 ## Running
 
@@ -159,7 +160,7 @@ Right now, the code is over-optimistic: we don't catch cleanly when the backend 
 
 A better user experience could be achieved with the use of the [curses](https://docs.python.org/3/library/curses.html) library.
 
-For now, only the `/quit` and `remember` actions are supported. I need to enable the others (`/revert`, `/alter`...).
+For now `/revert` and `/alter`special actions are not supported.
 
 It would also be nice to add support for browsing other players' stories (_Explore_ menu).
 
