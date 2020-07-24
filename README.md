@@ -121,7 +121,7 @@ auth_token: '<MY-AUTH-TOKEN>'
 
 To get this token, you need to first login in a web browser to [play.aidungeon.io](https://play.aidungeon.io/).
 
-Then you can find the token either in your browser [localStorage](https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage) or in `X-Auth-Token` _Request Header_ of the _POST inputs_ requests made while playing.
+Then you can find the token either in your browser [localStorage](https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage) or in the content of the `connection_init` message of the websocket communication (first sent message).
 
 Either way, developer tools (`F12`) is your friend.
 
