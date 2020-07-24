@@ -70,7 +70,9 @@ With a viltualenv:
 Please note that all those examples use a virtual env in order to not mess up with the main Python env on your system.
 
 
-## Configuration
+## Configuration (optional)
+
+Several things can be tuned by resorting to a config file.
 
 Create a file `config.yml` either:
 
@@ -78,7 +80,9 @@ Create a file `config.yml` either:
  - in the same folder as the sources: `./ai-dungeon-cli/ai_dungeon_cli/config.yml`
 
 
-#### Authentication (mandatory)
+#### Authentication
+
+By default, if no authentication configurati is provided, an anonymous session is created.
 
 ai-dungeon-cli supports 2 ways to configure user authentication.
 
