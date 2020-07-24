@@ -222,6 +222,7 @@ class AiDungeonApiClient:
         # debug_print(result)
 
 
+
     @staticmethod
     def initial_story_from_history_list(history_list):
         pitch = ''
@@ -236,19 +237,40 @@ class AiDungeonApiClient:
         self.story_pitch = self.story_pitch_template.replace('${character.name}', self.character_name)
 
 
-    def init_story(self):
+    def init_custom_story_pitch(self, user_input):
 
+        debug_print("send custom settings story pitch")
+        result = self._execute_query('''
+        mutation ($input: ContentActionInput) {  sendAction(input: $input) {    id    actionLoading    memory    died    gameState    newQuests {      id      text      completed      active      __typename    }    actions {      id      text      __typename    }    __typename  }}
+        ''',
+                                     {
+                                         "input": {
+                                             "type": "story",
+                                             "text": user_input,
+                                             "id": self.adventure_id}})
+        debug_print(result)
+        self.story_pitch = ''.join([a['text'] for a in result['sendAction']['actions']])
+
+
+    def _create_adventure(self, scenario_id):
         debug_print("create adventure")
         result = self._execute_query('''
         mutation ($id: String, $prompt: String) {  createAdventureFromScenarioId(id: $id, prompt: $prompt) {    id    contentType    contentId    title    description    musicTheme    tags    nsfw    published    createdAt    updatedAt    deletedAt    publicId    historyList    __typename  }}
         ''',
                                      {
-                                         "id": self.character_id,
+                                         "id": scenario_id,
                                          "prompt": self.story_pitch
                                      })
         debug_print(result)
         self.adventure_id = result['createAdventureFromScenarioId']['id']
-        self.story_pitch = self.initial_story_from_history_list(result['createAdventureFromScenarioId']['historyList'])
+        if 'historyList' in result['createAdventureFromScenarioId']:
+            # NB: not present when self.story_pitch is None, as is the case for a custom scenario
+            self.story_pitch = self.initial_story_from_history_list(result['createAdventureFromScenarioId']['historyList'])
+
+
+    def init_story(self):
+
+        self._create_adventure(self.character_id)
 
         debug_print("get created adventure ids")
         result = self._execute_query('''
@@ -486,6 +508,7 @@ class AbstractAiDungeon(ABC):
         self.user_id: str = None
         self.session_id: str = None
         self.public_id: str = None
+        self.setting_name: str = None
         self.story_configuration: Dict[str, str] = {}
         self.session: requests.Session = requests.Session()
 
@@ -585,18 +608,6 @@ class AiDungeonV2(AbstractAiDungeon):
                 self.api.anonymous_login()
 
 
-    def make_custom_config(self, scenario):
-        self.user_io.handle_basic_output(
-        "Enter a prompt that describes who you are and the first couple sentences of where you start out ex: "
-        "'You are a knight in the kingdom of Larion. You are hunting the evil dragon who has been terrorizing "
-        "the kingdom. You enter the forest searching for the dragon and see'"
-        )
-        context = self.user_io.handle_user_input()
-
-        self.story_configuration = scenario
-        self.story_pitch = context
-
-
     def choose_config(self):
         # self.api.perform_init_handshake()
 
@@ -613,15 +624,12 @@ class AiDungeonV2(AbstractAiDungeon):
             setting_select_dict[str(i)] = setting_name
             # setting_select_dict['0'] = '0' # secret mode
         selected_i = self.choose_selection(setting_select_dict, 'k')
-        setting_id, setting_name = settings[selected_i]
+        setting_id, self.setting_name = settings[selected_i]
         self.api.scenario_id = setting_id # TODO: create a setter instead
 
-        if setting_name == "custom":
-            print('Not yet supported, sorry')
-            exit(3)
-            # If the custom option was selected load the custom configuration and don't continue this configuration
-        #     self.make_custom_config(selected_mode_opts['scenario'])
-        elif setting_name == "archive":
+        if self.setting_name == "custom":
+            return
+        elif self.setting_name == "archive":
             print('Not yet supported, sorry')
             exit(3)
 
@@ -658,10 +666,26 @@ class AiDungeonV2(AbstractAiDungeon):
 
     # Initialize story
     def init_story(self):
-        print("Generating story... Please wait...\n")
+        if self.setting_name == "custom":
+            self.init_story_custom()
+        else:
+            print("Generating story... Please wait...\n")
+            self.api.init_story()
 
-        self.api.init_story()
         self.user_io.handle_story_output(self.api.story_pitch)
+
+
+    def init_story_custom(self):
+        self.user_io.handle_basic_output(
+            "Enter a prompt that describes who you are and the first couple sentences of where you start out ex: "
+            "'You are a knight in the kingdom of Larion. You are hunting the evil dragon who has been terrorizing "
+            "the kingdom. You enter the forest searching for the dragon and see'"
+        )
+        user_story_pitch = self.user_io.handle_user_input()
+
+        self.api.story_pitch = None
+        self.api._create_adventure(self.api.scenario_id)
+        self.api.init_custom_story_pitch(user_story_pitch)
 
 
     def find_action_type(self, user_input: str):
