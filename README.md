@@ -165,6 +165,7 @@ Jordan Besly [@p3r7](https://github.com/p3r7) ([blog](https://www.eigenbahn.com/
  - Idan Gur [@idangur](https://github.com/idangur): OOP rewrite of game logic
  - Alberto Oporto Ames [@otreblan](https://github.com/otreblan): packaging, submission to AUR
  - [@jgb95](https://github.com/jgb95): slow typing effect
+ - [@sasha00123](https://github.com/sasha00123): help on porting to new websocket/gql-based version of the API
 
  Minor contributions:
  - Robert Davis [@bdavs](https://github.com/bdavs): pip requirements
@@ -175,4 +176,5 @@ Code for slow typing effect inspired by [this message](https://mail.python.org/p
 
 ## Similar projects
 
-[SoptikHa2/aidungeon2-cli](https://github.com/SoptikHa2/aidungeon2-cli) is a very similar project, written in Rust.
+ - [sasha00123/ai-dungeon-bot](https://github.com/sasha00123/ai-dungeon-bot), a bot for Telegram & VK, written in python
+ - [SoptikHa2/aidungeon2-cli](https://github.com/SoptikHa2/aidungeon2-cli), written in Rust (unmaintained).
