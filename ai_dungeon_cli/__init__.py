@@ -508,7 +508,7 @@ class Config:
 # -------------------------------------------------------------------------
 # GAME LOGIC
 
-class AbstractAiDungeon(ABC):
+class AbstractAiDungeonGame(ABC):
     def __init__(self, api: AiDungeonApiClient, conf: Config, user_io: UserIo):
         self.stop_session: bool = False
         self.user_id: str = None
@@ -595,7 +595,7 @@ class AbstractAiDungeon(ABC):
 
 ## --------------------------------
 
-class AiDungeonV2(AbstractAiDungeon):
+class AiDungeonGame(AbstractAiDungeonGame):
     def __init__(self, api: AiDungeonApiClient, conf: Config, user_io: UserIo):
         super().__init__(api, conf, user_io)
 
@@ -782,8 +782,8 @@ def main():
 
         api_client = AiDungeonApiClient()
 
-        # Initialize the AiDungeon class with the given auth_token and prompt
-        ai_dungeon = AiDungeonV2(api_client, conf, term_io)
+        # Initialize the game logic class with the given auth_token and prompt
+        ai_dungeon = AiDungeonGame(api_client, conf, term_io)
 
         # Clears the console
         term_io.clear()
