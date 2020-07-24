@@ -84,6 +84,22 @@ class AiDungeonApiClient:
                                  fetch_schema_from_transport=True)
 
 
+    def user_login(self, email, password):
+        debug_print("user login")
+        result = self._execute_query('''
+        mutation ($email: String, $password: String, $anonymousId: String) {  login(email: $email, password: $password, anonymousId: $anonymousId) {    id    accessToken    __typename  }}
+        ''',
+                                     {
+                                         "email": email ,
+                                         "password": password
+                                     }
+        )
+        debug_print(result)
+        self.account_id = result['login']['id']
+        self.access_token = result['login']['accessToken']
+        self.update_session_access_token(self.access_token)
+
+
     def anonymous_login(self):
         debug_print("anonymous login")
         result = self._execute_query('''
@@ -463,6 +479,7 @@ class Config:
 
         did_read_cfg_file = False
 
+        cfg = {}
         for file in cfg_file_paths:
             try:
                 with open(file, "r") as cfg_raw:
@@ -470,16 +487,6 @@ class Config:
                     did_read_cfg_file = True
             except IOError:
                 pass
-
-        if not did_read_cfg_file:
-            raise FailedConfiguration("Missing config file at " \
-                                      + ", ".join(cfg_file_paths))
-
-        if (not exists(cfg, "auth_token")) and (
-                not (exists(cfg, "email")) and not (exists(cfg, "password"))
-        ):
-            raise FailedConfiguration("Missing or empty authentication configuration. "
-            "Please register a token ('auth_token' key) or credentials ('email' / 'password')")
 
         if exists(cfg, "slow_typing_effect"):
             self.slow_typing_effect = cfg["slow_typing_effect"]
@@ -517,6 +524,10 @@ class AbstractAiDungeon(ABC):
 
     def get_auth_token(self) -> str:
         return self.conf.auth_token
+
+    def get_credentials(self):
+        if self.conf.email and self.conf.password:
+            return [self.conf.email, self.conf.password]
 
     def login(self):
         pass
@@ -592,8 +603,12 @@ class AiDungeonV2(AbstractAiDungeon):
         if auth_token:
             self.api.update_session_access_token(auth_token)
         else:
-            # TODO: handle login by credentials
-            self.api.anonymous_login()
+            creds = self.get_credentials()
+            if creds:
+                email, password = creds
+                self.api.user_login(email, password)
+            else:
+                self.api.anonymous_login()
 
 
     def make_custom_config(self, scenario):
@@ -758,11 +773,11 @@ def main():
         # Initialize the AiDungeon class with the given auth_token and prompt
         ai_dungeon = AiDungeonV2(api_client, conf, term_io)
 
-        # Login
-        ai_dungeon.login()
-
         # Clears the console
         term_io.clear()
+
+        # Login
+        ai_dungeon.login()
 
         # Displays the splash image accordingly
         if term_io.get_width() >= 80:
