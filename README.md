@@ -42,6 +42,26 @@ Old school way:
     $ makepkg -si
 
 
+## Playing
+
+Unless specified, all user inputs are considered `Do` actions.
+
+Quoted input entries are automatically interpreted as `Say` actions, e.g.:
+
+    > "Hey dragon! You didn't invite me to the latest BBQ party!"
+
+Do be explicit about the action type, prefix your input with a command:
+
+ - `/do`
+ - `/say`
+ - `/story`
+ - `/remember`
+
+For example, the previous `Say` prompt could also be written:
+
+    > /say Hey dragon! You didn't invite me to the latest BBQ party!
+
+
 ## Running
 
 In any case, you first need to create a configuration file.
