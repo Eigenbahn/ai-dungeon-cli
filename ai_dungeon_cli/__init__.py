@@ -263,6 +263,22 @@ class AiDungeonApiClient:
         # self.story_pitch = self.initial_story_from_history_list(result['content']['historyList'])
 
 
+    def perform_remember_action(self, user_input):
+        debug_print("remember something")
+        result = self._execute_query('''
+        mutation ($input: ContentActionInput) {  updateMemory(input: $input) {    id    memory    __typename  }}
+        ''',
+                                     {
+                                         "input":
+                                         {
+                                             "text": user_input,
+                                             "type":"remember",
+                                             "id": self.adventure_id
+                                         }
+                                     })
+        debug_print(result)
+
+
     def perform_regular_action(self, action, user_input):
 
         story_continuation = ""
@@ -719,25 +735,11 @@ class AiDungeonV2(AbstractAiDungeon):
         (action, user_input) = self.find_action_type(user_input)
 
         resp = self.api.perform_regular_action(action, user_input)
-        # resp = asyncio.run(self.api.perform_regular_action_async(action, user_input))
 
         self.user_io.handle_story_output(resp)
 
     def process_remember_action(self, user_input: str):
-        rq = {
-            "input": user_input,
-            "platform": "web"
-        }
-        if DEBUG:
-            pprint(rq)
-        r = self.session.post(
-            "https://" + self.api_dn + "/user/adventure/" + str(self.session_id) + "/action/remember",
-                json=rq,
-            )
-        r.raise_for_status()
-        if r.text != 'OK':
-            # TODO: handle this
-            pass
+        self.api.perform_remember_action(user_input)
 
     def process_next_action(self):
         user_input = self.user_io.handle_user_input()
