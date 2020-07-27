@@ -1,0 +1,32 @@
+name: Python
+
+on:
+  push:
+    branches: [ '*' ]
+  pull_request:
+    branches: [ '*' ]
+
+jobs:
+  Lint:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: ['ubuntu-20.04']
+
+      fail-fast: true
+      max-parallel: 3
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Dependencies
+      run: pip3 install -r requirements.txt
+
+    - uses: TrueBrain/actions-flake8@master
+      with:
+        ignore: F,W,C90,F401
+        only_warn: 1
+
+    - uses: TrueBrain/actions-flake8@master
+      with:
+        ignore: E,F401
