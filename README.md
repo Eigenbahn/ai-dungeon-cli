@@ -190,7 +190,7 @@ Jordan Besly [@p3r7](https://github.com/p3r7) ([blog](https://www.eigenbahn.com/
  - Idan Gur [@idangur](https://github.com/idangur): OOP rewrite of game logic
  - Alberto Oporto Ames [@otreblan](https://github.com/otreblan): packaging, submission to AUR
  - [@jgb95](https://github.com/jgb95): slow typing effect
- - [@sasha00123](https://github.com/sasha00123): help on porting to new websocket/gql-based version of the API
+ - Alexander Batyrgariev [@sasha00123](https://github.com/sasha00123): help on porting to new websocket/gql-based version of the API
 
  Minor contributions:
  - Robert Davis [@bdavs](https://github.com/bdavs): pip requirements
