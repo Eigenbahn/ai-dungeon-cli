@@ -202,4 +202,4 @@ Code for slow typing effect inspired by [this message](https://mail.python.org/p
 ## Similar projects
 
  - [sasha00123/ai-dungeon-bot](https://github.com/sasha00123/ai-dungeon-bot), a bot for Telegram & VK, written in python
- - [SoptikHa2/aidungeon2-cli](https://github.com/SoptikHa2/aidungeon2-cli), written in Rust (unmaintained).
+ - [SoptikHa2/aidungeon2-cli](https://github.com/SoptikHa2/aidungeon2-cli), written in Rust (unmaintained)
