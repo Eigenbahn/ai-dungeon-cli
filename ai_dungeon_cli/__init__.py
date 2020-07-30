@@ -29,8 +29,8 @@ from pprint import pprint
 # -------------------------------------------------------------------------
 # CONF
 
-# DEBUG = False
-DEBUG = True
+DEBUG = False
+# DEBUG = True
 
 def debug_print(msg):
     if DEBUG:
