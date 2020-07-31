@@ -20,7 +20,7 @@ For more context, read the [accompanying blog post](https://www.eigenbahn.com/20
     $ python3 -m pip install ai-dungeon-cli
 
 
-Of for unstable release from the source code:
+Or for unstable release from the source code:
 
     $ python3 -m pip install .
 
