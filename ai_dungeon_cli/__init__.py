@@ -2,6 +2,7 @@
 
 import os
 import sys
+import argparse
 import asyncio
 from gql import gql, Client, WebsocketsTransport
 import requests
@@ -427,8 +428,9 @@ class TermIo(UserIo):
 
 
 class TermIoSlowStory(TermIo):
-    def __init__(self):
+    def __init__(self, prompt: str = ''):
         sys.stdout = Unbuffered(sys.stdout)
+        super().__init__(prompt)
 
     def handle_story_output(self, text: str):
         for line in textwrap.wrap(text, self.get_width()):
@@ -454,17 +456,76 @@ class Unbuffered(object):
 
 
 # -------------------------------------------------------------------------
-# CONF
+# CONF OBJECT
 
 class Config:
     def __init__(self):
         self.prompt: str = "> "
-        self.slow_typing_effect: str = "> "
+        # self.user_name: str = None
 
-        self.user_name: str = None
+        self.slow_typing_effect: bool = False
+
+        self.debug: bool = False
+
         self.auth_token: str = None
         self.email: str = None
         self.password: str = None
+
+    @staticmethod
+    def merged(confs):
+        default_conf = Config()
+        conf = Config()
+        for c in confs:
+            for a in ['prompt', 'slow_typing_effect', 'debug',
+                      'auth_token', 'email', 'password']:
+                v = getattr(c, a)
+                if getattr(default_conf, a) != v:
+                    setattr(conf, a, v)
+        return conf
+
+
+    @staticmethod
+    def loaded_from_cli_args():
+        conf = Config()
+        conf.load_from_cli_args()
+        return conf
+
+    def load_from_cli_args(self):
+        parsed = Config.parse_cli_args()
+        if hasattr(parsed, "debug"):
+            self.debug = parsed.debug
+        if hasattr(parsed, "prompt"):
+            self.prompt = parsed.prompt
+        if hasattr(parsed, "slow_typing"):
+            self.slow_typing_effect = parsed.slow_typing
+        if hasattr(parsed, "auth_token"):
+            self.auth_token = parsed.auth_token
+        if hasattr(parsed, "email"):
+            self.email = parsed.email
+        if hasattr(parsed, "password"):
+            self.password = parsed.password
+        # if exists(cfg, "user_name"):
+        #     self.user_name = cfg["user_name"]
+
+    @staticmethod
+    def parse_cli_args():
+        parser = argparse.ArgumentParser(description='ai-dungeon-cli is a command-line client to play.aidungeon.io')
+        parser.add_argument("--debug", action='store_const', const=True,
+                            help="enable debug")
+        parser.add_argument("--prompt", type=str, required=False, default="> ",
+                            help="text for user prompt")
+
+        parser.add_argument("--auth-token", type=str, required=False,
+                            help="authentication token")
+        parser.add_argument("--email", type=str, required=False,
+                            help="email (for authentication)")
+        parser.add_argument("--password", type=str, required=False,
+                            help="password (for authentication)")
+
+        parser.add_argument("--slow-typing", action='store_const', const=True,
+                            help="enable slow typing effect for story")
+        return parser.parse_args()
+
 
     @staticmethod
     def loaded_from_file():
@@ -500,9 +561,9 @@ class Config:
             self.email = cfg["email"]
         if exists(cfg, "password"):
             self.password = cfg["password"]
-            self.user_name = "John"
-        if exists(cfg, "user_name"):
-            self.user_name = cfg["user_name"]
+        # self.user_name = "John"
+        # if exists(cfg, "user_name"):
+        #     self.user_name = cfg["user_name"]
 
 
 # -------------------------------------------------------------------------
@@ -772,13 +833,15 @@ def main():
 
     try:
         # Initialize the configuration from config file
-        conf = Config.loaded_from_file()
+        file_conf = Config.loaded_from_file()
+        cli_args_conf = Config.loaded_from_cli_args()
+        conf = Config.merged([file_conf, cli_args_conf])
 
         # Initialize the terminal I/O class
         if conf.slow_typing_effect:
-            term_io = TermIo(conf.prompt)
-        else:
             term_io = TermIoSlowStory(conf.prompt)
+        else:
+            term_io = TermIo(conf.prompt)
 
         api_client = AiDungeonApiClient()
 
