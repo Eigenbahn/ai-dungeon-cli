@@ -26,20 +26,13 @@ except ImportError:
 
 from pprint import pprint
 
+# NB: this is hackish but necessary for conda
+main_path = os.path.dirname(os.path.realpath(__file__))
+module_path = os.path.abspath(main_path + '/..')
+if module_path not in sys.path:
+    sys.path.append(module_path)
 
-# -------------------------------------------------------------------------
-# CONF
-
-DEBUG = False
-# DEBUG = True
-
-def debug_print(msg):
-    if DEBUG:
-        print(msg)
-
-def debug_pprint(msg):
-    if DEBUG:
-        print(msg)
+from utils.debug_print import activate_debug, debug_print, debug_pprint
 
 
 # -------------------------------------------------------------------------
@@ -836,6 +829,9 @@ def main():
         file_conf = Config.loaded_from_file()
         cli_args_conf = Config.loaded_from_cli_args()
         conf = Config.merged([file_conf, cli_args_conf])
+
+        if conf.debug:
+            activate_debug()
 
         # Initialize the terminal I/O class
         if conf.slow_typing_effect:
