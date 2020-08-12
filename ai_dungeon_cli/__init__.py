@@ -12,9 +12,9 @@ from typing import Dict
 
 from pprint import pprint
 
-# NB: this is hackish but necessary for conda
+# NB: this is hackish but seems necessary when downloaded from pypi
 main_path = os.path.dirname(os.path.realpath(__file__))
-module_path = os.path.abspath(main_path + '/..')
+module_path = os.path.abspath(main_path)
 if module_path not in sys.path:
     sys.path.append(module_path)
 
