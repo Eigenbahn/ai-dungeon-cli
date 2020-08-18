@@ -127,6 +127,17 @@ Then you can find the token either in your browser [localStorage](https://develo
 Either way, developer tools (`F12`) is your friend.
 
 
+#### Slow Typing Animation
+
+By default, responses are printed to the screen instantly.
+
+To enable a fun "slow" typing animation, use:
+
+```yaml
+slow_typing_effect: True
+```
+
+
 #### Prompt
 
 The default user prompt is `'> '`.
@@ -138,15 +149,31 @@ prompt: 'me: '
 ```
 
 
+## Command-line arguments
+
+All configuration options are mapped to command-line arguments.
+
+Additionally, some features (such as multi-player support) are only available through those arguments.
+
+The list of all arguments can be retrieved by calling `ai-dungeon-cli` with either `-h` of `--help`.
+
+#### Authentication
+
+One can use either the `--auth-token <token>` or `--email <email> --password <password>` arguments to authenticate.
+
 #### Slow Typing Animation
 
-By default, responses are printed to the screen instantly.
+Just append `--slow-typing` to your execution call to enable this fancy effect.
 
-To enable a fun "slow" typing animation, use:
 
-```yaml
-slow_typing_effect: True
-```
+#### Prompt
+
+The custom prompt can be set with `--prompt '<prompt>'`.
+
+
+#### Multi-player
+
+To join an existing multi-player adventure, use arguments `--adventure <public-adventure-id> --name <character-name>`.
 
 
 ## Dependencies
