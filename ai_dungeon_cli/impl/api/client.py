@@ -148,6 +148,16 @@ class AiDungeonApiClient:
         return self.get_options(self.single_player_mode_id)
 
 
+    def join_multi_adventure(self, public_adventure_id):
+        debug_print("join multi-user adventure")
+        result = self._execute_query('''
+        mutation ($adventurePlayPublicId: String) {  addUserToAdventure(adventurePlayPublicId: $adventurePlayPublicId)}
+        ''',
+                                     {"adventurePlayPublicId": public_adventure_id})
+        self.adventure_id = result['addUserToAdventure']
+        debug_print(result)
+
+
     def get_characters(self):
         prompt = ''
         characters = {}
@@ -237,6 +247,24 @@ class AiDungeonApiClient:
             self.story_pitch = self.initial_story_from_history_list(result['createAdventureFromScenarioId']['historyList'])
 
 
+    def init_story_multi_adventure(self, public_adventure_id):
+        debug_print("get story multi-user adventure")
+        result = self._execute_query('''
+        query ($id: String, $playPublicId: String) {  content(id: $id, playPublicId: $playPublicId) {    id    actions {      id      text      __typename    }    quests    newQuests {      id      text      completed      active      __typename    }    playPublicId    userId    __typename  }}
+        ''',
+                                     {"playPublicId": public_adventure_id})
+        debug_print(result)
+        entries = []
+        for entry in result['content']['actions']:
+            if entry['__typename'] != 'Action':
+                continue
+            entry = entry['text']
+            if entry.startswith("\n>"):
+                entry = "\n" + entry + "\n" # mo' spacing please
+            entries.append(entry)
+        self.story_pitch = ''.join(entries)
+
+
     def init_story(self):
 
         self._create_adventure(self.scenario_id)
@@ -274,7 +302,6 @@ class AiDungeonApiClient:
 
         story_continuation = ""
 
-
         debug_print("send regular action")
         result = self._execute_query('''
         mutation ($input: ContentActionInput) {  sendAction(input: $input) {    id    actionLoading    memory    died    gameState    __typename  }}
@@ -283,7 +310,8 @@ class AiDungeonApiClient:
                                          "input": {
                                              "type": action,
                                              "text": user_input,
-                                             "id": self.adventure_id
+                                             "id": self.adventure_id,
+                                             "characterName": self.character_name
                                          }
                                      })
         debug_print(result)

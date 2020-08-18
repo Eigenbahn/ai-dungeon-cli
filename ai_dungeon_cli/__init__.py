@@ -152,6 +152,11 @@ class AiDungeonGame(AbstractAiDungeonGame):
         self.api.character_name = character_name # TODO: create a setter instead
 
 
+    def join_multiplayer(self):
+        self.api.character_name = self.conf.character_name
+        self.api.join_multi_adventure(self.conf.public_adventure_id)
+
+
     def choose_config(self):
         # self.api.perform_init_handshake()
 
@@ -227,6 +232,11 @@ class AiDungeonGame(AbstractAiDungeonGame):
             print("Generating story... Please wait...\n")
             self.api.init_story()
 
+        self.user_io.handle_story_output(self.api.story_pitch)
+
+
+    def init_story_multi_adventure(self):
+        self.api.init_story_multi_adventure(self.conf.public_adventure_id)
         self.user_io.handle_story_output(self.api.story_pitch)
 
 
@@ -328,12 +338,18 @@ def main():
             term_io.display_splash()
 
         # Loads the current session configuration
-        ai_dungeon.choose_config()
+        if conf.public_adventure_id:
+            # print('1')
+            ai_dungeon.join_multiplayer()
+        else:
+            # print('2')
+            ai_dungeon.choose_config()
 
         # Initializes the story
-        ai_dungeon.init_story()
-
-        # exit()
+        if conf.public_adventure_id:
+            ai_dungeon.init_story_multi_adventure()
+        else:
+            ai_dungeon.init_story()
 
         # Starts the game
         ai_dungeon.start_game()
