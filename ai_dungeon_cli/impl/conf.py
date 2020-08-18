@@ -17,28 +17,26 @@ def exists(cfg: Dict[str, str], key: str) -> str:
 class Config:
     def __init__(self):
         self.prompt: str = "> "
-        # self.user_name: str = None
-
         self.slow_typing_effect: bool = False
-
-        self.debug: bool = False
 
         self.auth_token: str = None
         self.email: str = None
         self.password: str = None
+
+        self.debug: bool = False
 
     @staticmethod
     def merged(confs):
         default_conf = Config()
         conf = Config()
         for c in confs:
-            for a in ['prompt', 'slow_typing_effect', 'debug',
-                      'auth_token', 'email', 'password']:
+            for a in ['prompt', 'slow_typing_effect',
+                      'auth_token', 'email', 'password',
+                      'debug']:
                 v = getattr(c, a)
                 if getattr(default_conf, a) != v:
                     setattr(conf, a, v)
         return conf
-
 
     @staticmethod
     def loaded_from_cli_args():
@@ -48,8 +46,6 @@ class Config:
 
     def load_from_cli_args(self):
         parsed = Config.parse_cli_args()
-        if hasattr(parsed, "debug"):
-            self.debug = parsed.debug
         if hasattr(parsed, "prompt"):
             self.prompt = parsed.prompt
         if hasattr(parsed, "slow_typing"):
@@ -60,16 +56,16 @@ class Config:
             self.email = parsed.email
         if hasattr(parsed, "password"):
             self.password = parsed.password
-            # if exists(cfg, "user_name"):
-            #     self.user_name = cfg["user_name"]
+        if hasattr(parsed, "debug"):
+            self.debug = parsed.debug
 
     @staticmethod
     def parse_cli_args():
         parser = argparse.ArgumentParser(description='ai-dungeon-cli is a command-line client to play.aidungeon.io')
-        parser.add_argument("--debug", action='store_const', const=True,
-                            help="enable debug")
         parser.add_argument("--prompt", type=str, required=False, default="> ",
                             help="text for user prompt")
+        parser.add_argument("--slow-typing", action='store_const', const=True,
+                            help="enable slow typing effect for story")
 
         parser.add_argument("--auth-token", type=str, required=False,
                             help="authentication token")
@@ -78,10 +74,10 @@ class Config:
         parser.add_argument("--password", type=str, required=False,
                             help="password (for authentication)")
 
-        parser.add_argument("--slow-typing", action='store_const', const=True,
-                            help="enable slow typing effect for story")
-        return parser.parse_args()
+        parser.add_argument("--debug", action='store_const', const=True,
+                            help="enable debug")
 
+        return parser.parse_args()
 
     @staticmethod
     def loaded_from_file():
@@ -107,16 +103,13 @@ class Config:
             except IOError:
                 pass
 
-        if exists(cfg, "slow_typing_effect"):
-            self.slow_typing_effect = cfg["slow_typing_effect"]
         if exists(cfg, "prompt"):
             self.prompt = cfg["prompt"]
+        if exists(cfg, "slow_typing_effect"):
+            self.slow_typing_effect = cfg["slow_typing_effect"]
         if exists(cfg, "auth_token"):
             self.auth_token = cfg["auth_token"]
         if exists(cfg, "email"):
             self.email = cfg["email"]
         if exists(cfg, "password"):
             self.password = cfg["password"]
-            # self.user_name = "John"
-            # if exists(cfg, "user_name"):
-            #     self.user_name = cfg["user_name"]
