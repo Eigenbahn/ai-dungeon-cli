@@ -8,7 +8,7 @@ I primarily did this to play the game on a DEC VT320 hardware terminal for a mor
 
 For more context, read the [accompanying blog post](https://www.eigenbahn.com/2020/02/22/ai-dungeon-cli).
 
-![AI DUngeon on a VT320](https://www.eigenbahn.com/assets/img/ai-dungeon-vt320.jpg)
+![AI Dungeon on a VT320](https://www.eigenbahn.com/assets/img/ai-dungeon-vt320.jpg)
 
 
 ## Installation
@@ -103,7 +103,7 @@ Create a file `config.yml` either:
 
 #### Authentication
 
-By default, if no authentication configurati is provided, an anonymous session is created.
+By default, if no authentication configuration is provided, an anonymous session is created.
 
 ai-dungeon-cli supports 2 ways to configure user authentication.
 
@@ -174,6 +174,11 @@ The custom prompt can be set with `--prompt '<prompt>'`.
 #### Multi-player
 
 To join an existing multi-player adventure, use arguments `--adventure <public-adventure-id> --name <character-name>`.
+
+
+#### Debug
+
+TO enable debug mode and see the responses from the play.aidungeon.io API, use `--debug`. This option is mainly useful for developers.
 
 
 ## Dependencies
