@@ -42,7 +42,8 @@ class TermIo(UserIo):
         return user_input
 
     def handle_basic_output(self, text: str):
-        print("\n".join(textwrap.wrap(text, self.get_width())))
+        for line in text.split("\n"):
+            print("\n".join(textwrap.wrap(line, self.get_width())))
         print()
 
     # def handle_story_output(self, text: str):
@@ -85,12 +86,13 @@ class TermIoSlowStory(TermIo):
         super().__init__(prompt)
 
     def handle_story_output(self, text: str):
-        for line in textwrap.wrap(text, self.get_width()):
-            for letter in line:
-                print(letter, end='')
-                sleep(randint(2, 10)*0.005)
+        for line in text.split("\n"):
+            for line2 in textwrap.wrap(line, self.get_width()):
+                for letter in line2:
+                    print(letter, end='')
+                    sleep(randint(2, 10)*0.005)
                 print()
-                print()
+            print()
 
 
 # allow unbuffered output for slow typing effect
