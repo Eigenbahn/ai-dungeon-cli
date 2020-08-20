@@ -18,13 +18,6 @@ class AiDungeonApiClient:
         self.access_token: str = ''
 
         self.single_player_mode_id: str = 'scenario:458612'
-        self.scenario_id: str = '' # REVIEW: maybe call it setting_id ?
-        self.character_name: str = ''
-        self.story_pitch_template: str = ''
-        self.story_pitch: str = ''
-        self.adventure_id: str = ''
-        self.public_id: str = ''
-        self.quests: str = ''
 
 
     async def _execute_query_pseudo_async(self, query, params={}):
@@ -154,11 +147,11 @@ class AiDungeonApiClient:
         mutation ($adventurePlayPublicId: String) {  addUserToAdventure(adventurePlayPublicId: $adventurePlayPublicId)}
         ''',
                                      {"adventurePlayPublicId": public_adventure_id})
-        self.adventure_id = result['addUserToAdventure']
         debug_print(result)
+        return result['addUserToAdventure']
 
 
-    def get_characters(self):
+    def get_characters(self, scenario_id):
         prompt = ''
         characters = {}
 
@@ -166,7 +159,7 @@ class AiDungeonApiClient:
         result = self._execute_query('''
         query ($id: String) {  user {    id    username    __typename  }  content(id: $id) {    id    userId    contentType    contentId    prompt    gameState    options {      id      title      __typename    }    playPublicId    __typename  }}
         ''',
-                                     {"id": self.scenario_id})
+                                     {"id": scenario_id})
         debug_print(result)
         prompt = result['content']['prompt']
         characters = self.normalize_options(result['content']['options'])
@@ -175,7 +168,7 @@ class AiDungeonApiClient:
         # result = self._execute_query('''
         # query ($id: String) {  content(id: $id) {    id    contentType    contentId    title    description    prompt    memory    tags    nsfw    published    createdAt    updatedAt    deletedAt    options {      id      title      __typename    }    __typename  }}
         # ''',
-        #                              {"id": self.scenario_id})
+        #                              {"id": scenario_id})
         # debug_print(result)
         # prompt = result['content']['prompt']
         # characters = self.normalize_options(result['content']['options'])
@@ -183,15 +176,15 @@ class AiDungeonApiClient:
         return [prompt, characters]
 
 
-    def get_story_for_scenario(self):
+    def get_story_template_for_scenario(self, scenario_id):
 
         debug_print("query get story for scenario")
         result = self._execute_query('''
         query ($id: String) {  user {    id    username    __typename  }  content(id: $id) {    id    userId    contentType    contentId    prompt    gameState    options {      id      title      __typename    }    playPublicId    __typename  }}
         ''',
-                                     {"id": self.scenario_id})
+                                     {"id": scenario_id})
         debug_print(result)
-        self.story_pitch_template = result['content']['prompt']
+        return result['content']['prompt']
 
         # debug_print("query get story for scenario #2")
         # result = self._execute_query('''
@@ -212,11 +205,11 @@ class AiDungeonApiClient:
         return pitch
 
 
-    def set_story_pitch(self):
-        self.story_pitch = self.story_pitch_template.replace('${character.name}', self.character_name)
+    def make_story_pitch(self, story_pitch_template, character_name):
+        return story_pitch_template.replace('${character.name}', character_name)
 
 
-    def init_custom_story_pitch(self, user_input):
+    def init_custom_story_pitch(self, adventure_id, user_input):
 
         debug_print("send custom settings story pitch")
         result = self._execute_query('''
@@ -226,25 +219,27 @@ class AiDungeonApiClient:
                                          "input": {
                                              "type": "story",
                                              "text": user_input,
-                                             "id": self.adventure_id}})
+                                             "id": adventure_id}})
         debug_print(result)
-        self.story_pitch = ''.join([a['text'] for a in result['sendAction']['actions']])
+        return ''.join([a['text'] for a in result['sendAction']['actions']])
 
 
-    def _create_adventure(self, scenario_id):
+    def create_adventure(self, scenario_id, story_pitch):
         debug_print("create adventure")
         result = self._execute_query('''
         mutation ($id: String, $prompt: String) {  createAdventureFromScenarioId(id: $id, prompt: $prompt) {    id    contentType    contentId    title    description    musicTheme    tags    nsfw    published    createdAt    updatedAt    deletedAt    publicId    historyList    __typename  }}
         ''',
                                      {
                                          "id": scenario_id,
-                                         "prompt": self.story_pitch
+                                         "prompt": story_pitch
                                      })
         debug_print(result)
-        self.adventure_id = result['createAdventureFromScenarioId']['id']
+        adventure_id = result['createAdventureFromScenarioId']['id']
+        story_pitch = None
         if 'historyList' in result['createAdventureFromScenarioId']:
-            # NB: not present when self.story_pitch is None, as is the case for a custom scenario
-            self.story_pitch = self.initial_story_from_history_list(result['createAdventureFromScenarioId']['historyList'])
+            # NB: not present when story_pitch is None, as is the case for a custom scenario
+            story_pitch = self.initial_story_from_history_list(result['createAdventureFromScenarioId']['historyList'])
+        return [adventure_id, story_pitch]
 
 
     def init_story_multi_adventure(self, public_adventure_id):
@@ -262,27 +257,29 @@ class AiDungeonApiClient:
             if entry.startswith("\n>"):
                 entry = "\n" + entry + "\n" # mo' spacing please
             entries.append(entry)
-        self.story_pitch = ''.join(entries)
+        return ''.join(entries)
 
 
-    def init_story(self):
-
-        self._create_adventure(self.scenario_id)
+    def init_story(self, scenario_id, story_pitch):
+        adventure_id, story_pitch = self.create_adventure(scenario_id, story_pitch)
 
         debug_print("get created adventure ids")
         result = self._execute_query('''
         query ($id: String, $playPublicId: String) {  content(id: $id, playPublicId: $playPublicId) {    id    historyList    quests    playPublicId    userId    __typename  }}
         ''',
                                      {
-                                         "id": self.adventure_id,
+                                         "id": adventure_id,
                                      })
         debug_print(result)
-        self.quests = result['content']['quests']
-        self.public_id = result['content']['playPublicId']
-        # self.story_pitch = self.initial_story_from_history_list(result['content']['historyList'])
+        quests = result['content']['quests']
+        public_id = result['content']['playPublicId']
+        # story_pitch = self.initial_story_from_history_list(result['content']['historyList'])
+
+        return [adventure_id, public_id, story_pitch, quests]
 
 
-    def perform_remember_action(self, user_input):
+
+    def perform_remember_action(self, user_input, adventure_id):
         debug_print("remember something")
         result = self._execute_query('''
         mutation ($input: ContentActionInput) {  updateMemory(input: $input) {    id    memory    __typename  }}
@@ -292,13 +289,13 @@ class AiDungeonApiClient:
                                          {
                                              "text": user_input,
                                              "type":"remember",
-                                             "id": self.adventure_id
+                                             "id": adventure_id
                                          }
                                      })
         debug_print(result)
 
 
-    def perform_regular_action(self, action, user_input):
+    def perform_regular_action(self, adventure_id, action, user_input, character_name = None):
 
         story_continuation = ""
 
@@ -310,8 +307,8 @@ class AiDungeonApiClient:
                                          "input": {
                                              "type": action,
                                              "text": user_input,
-                                             "id": self.adventure_id,
-                                             "characterName": self.character_name
+                                             "id": adventure_id,
+                                             "characterName": character_name
                                          }
                                      })
         debug_print(result)
@@ -330,7 +327,7 @@ class AiDungeonApiClient:
         }
         ''',
                                      {
-                                         "id": self.adventure_id
+                                         "id": adventure_id
                                      })
         debug_print(result)
         story_continuation = result['content']['actions'][-1]['text']

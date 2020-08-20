@@ -38,10 +38,21 @@ class QuitSession(Exception):
 class AbstractAiDungeonGame(ABC):
     def __init__(self, api: AiDungeonApiClient, conf: Config, user_io: UserIo):
         self.stop_session: bool = False
+
         self.user_id: str = None
         self.session_id: str = None
+
+        self.scenario_id: str = '' # REVIEW: maybe call it setting_id ?
+        self.character_name: str = ''
+        self.adventure_id: str = ''
         self.public_id: str = None
+
+        self.story_pitch_template: str = ''
+        self.story_pitch: str = ''
+        self.quests: str = ''
+
         self.setting_name: str = None
+        self.is_multiplayer: bool = False
         self.story_configuration: Dict[str, str] = {}
         self.session: requests.Session = requests.Session()
 
@@ -83,7 +94,7 @@ class AbstractAiDungeonGame(ABC):
                 continue
 
 
-    def choose_config(self):
+    def make_user_choose_config(self):
         pass
 
     # Initialize story
@@ -149,15 +160,16 @@ class AiDungeonGame(AbstractAiDungeonGame):
         if character_name == "/quit":
             raise QuitSession("/quit")
 
-        self.api.character_name = character_name # TODO: create a setter instead
+        self.character_name = character_name # TODO: create a setter instead
 
 
     def join_multiplayer(self):
-        self.api.character_name = self.conf.character_name
-        self.api.join_multi_adventure(self.conf.public_adventure_id)
+        self.is_multiplayer = True
+        self.character_name = self.conf.character_name
+        self.adventure_id = self.api.join_multi_adventure(self.conf.public_adventure_id)
 
 
-    def choose_config(self):
+    def make_user_choose_config(self):
         # self.api.perform_init_handshake()
 
         ## SETTING SELECTION
@@ -174,18 +186,19 @@ class AiDungeonGame(AbstractAiDungeonGame):
             # setting_select_dict['0'] = '0' # secret mode
         selected_i = self.choose_selection(setting_select_dict, 'k')
         setting_id, self.setting_name = settings[selected_i]
-        self.api.scenario_id = setting_id # TODO: create a setter instead
+        self.scenario_id = setting_id
 
         if self.setting_name == "custom":
             return
         elif self.setting_name == "archive":
             while True:
-                prompt, options = self.api.get_options(self.api.scenario_id)
+                prompt, options = self.api.get_options(self.scenario_id)
 
                 if options is None:
-                    self.api.story_pitch_template = prompt
+                    self.story_pitch_template = prompt
                     self._choose_character_name()
-                    self.api.set_story_pitch()
+                    self.story_pitch = self.api.make_story_pitch(self.story_pitch_template,
+                                                                self.character_name)
                     return
 
                 print(prompt + "\n")
@@ -198,12 +211,12 @@ class AiDungeonGame(AbstractAiDungeonGame):
                     # setting_select_dict['0'] = '0' # secret mode
                 selected_i = self.choose_selection(select_dict, 'k')
                 option_id, option_name = options[selected_i]
-                self.api.scenario_id = option_id # TODO: create a setter instead
+                self.scenario_id = option_id
 
 
         ## CHARACTER SELECTION
 
-        prompt, characters = self.api.get_characters()
+        prompt, characters = self.api.get_characters(self.scenario_id)
 
         print(prompt + "\n")
 
@@ -214,30 +227,29 @@ class AiDungeonGame(AbstractAiDungeonGame):
             character_select_dict[str(i)] = character_type
         selected_i = self.choose_selection(character_select_dict, 'k')
         character_id, character_type = characters[selected_i]
-        self.api.scenario_id = character_id # TODO: create a setter instead
+        self.scenario_id = character_id # TODO: create a setter instead
 
         self._choose_character_name()
 
         ## PITCH
 
-        self.api.get_story_for_scenario()
-        self.api.set_story_pitch()
+        self.story_pitch_template = self.api.get_story_template_for_scenario(self.scenario_id)
+        self.story_pitch = self.api.make_story_pitch(self.story_pitch_template,
+                                                     self.character_name)
 
 
     # Initialize story
     def init_story(self):
-        if self.setting_name == "custom":
+        if self.is_multiplayer:
+            self.api.init_story_multi_adventure(self.conf.public_adventure_id)
+        elif self.setting_name == "custom":
             self.init_story_custom()
         else:
             print("Generating story... Please wait...\n")
-            self.api.init_story()
+            self.adventure_id, self.public_id, self.story_pitch, self.quests = self.api.init_story(self.scenario_id,
+                                                                                self.story_pitch)
 
-        self.user_io.handle_story_output(self.api.story_pitch)
-
-
-    def init_story_multi_adventure(self):
-        self.api.init_story_multi_adventure(self.conf.public_adventure_id)
-        self.user_io.handle_story_output(self.api.story_pitch)
+        self.user_io.handle_story_output(self.story_pitch)
 
 
     def init_story_custom(self):
@@ -248,9 +260,9 @@ class AiDungeonGame(AbstractAiDungeonGame):
         )
         user_story_pitch = self.user_io.handle_user_input()
 
-        self.api.story_pitch = None
-        self.api._create_adventure(self.api.scenario_id)
-        self.api.init_custom_story_pitch(user_story_pitch)
+        self.story_pitch = None
+        self.adventure_id, _ = self.api.create_adventure(self.scenario_id, self.story_pitch)
+        self.story_pitch = self.api.init_custom_story_pitch(self.adventure_id, user_story_pitch)
 
 
     def find_action_type(self, user_input: str):
@@ -281,12 +293,12 @@ class AiDungeonGame(AbstractAiDungeonGame):
 
         (action, user_input) = self.find_action_type(user_input)
 
-        resp = self.api.perform_regular_action(action, user_input)
+        resp = self.api.perform_regular_action(self.adventure_id, action, user_input, self.character_name)
 
         self.user_io.handle_story_output(resp)
 
     def process_remember_action(self, user_input: str):
-        self.api.perform_remember_action(user_input)
+        self.api.perform_remember_action(user_input, self.adventure_id)
 
     def process_next_action(self):
         user_input = self.user_io.handle_user_input()
@@ -339,17 +351,12 @@ def main():
 
         # Loads the current session configuration
         if conf.public_adventure_id:
-            # print('1')
             ai_dungeon.join_multiplayer()
         else:
-            # print('2')
-            ai_dungeon.choose_config()
+            ai_dungeon.make_user_choose_config()
 
         # Initializes the story
-        if conf.public_adventure_id:
-            ai_dungeon.init_story_multi_adventure()
-        else:
-            ai_dungeon.init_story()
+        ai_dungeon.init_story()
 
         # Starts the game
         ai_dungeon.start_game()
