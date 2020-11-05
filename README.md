@@ -235,3 +235,7 @@ Code for slow typing effect inspired by [this message](https://mail.python.org/p
 
  - [sasha00123/ai-dungeon-bot](https://github.com/sasha00123/ai-dungeon-bot), a bot for Telegram & VK, written in python
  - [SoptikHa2/aidungeon2-cli](https://github.com/SoptikHa2/aidungeon2-cli), written in Rust (unmaintained)
+
+People have also forked this code and adapted it to interact with GPT-3:
+ - [@nakosung's fork](https://github.com/nakosung/ai-dungeon-cli)
+ - [@wesky93's fork](https://github.com/wesky93/ai-dungeon-cli)
