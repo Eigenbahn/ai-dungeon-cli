@@ -220,7 +220,7 @@ Jordan Besly [@p3r7](https://github.com/p3r7) ([blog](https://www.eigenbahn.com/
 
  Major contributions:
  - Idan Gur [@idangur](https://github.com/idangur): OOP rewrite of game logic
- - Alberto Oporto Ames [@otreblan](https://github.com/otreblan): packaging, submission to AUR
+ - Alberto Oporto Ames [@otreblan](https://github.com/otreblan): packaging, submission to AUR, CI chain and general housekeeping
  - [@jgb95](https://github.com/jgb95): slow typing effect
  - Alexander Batyrgariev [@sasha00123](https://github.com/sasha00123): help on porting to new websocket/gql-based version of the API
 
