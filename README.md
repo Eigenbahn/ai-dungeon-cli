@@ -8,7 +8,7 @@ I primarily did this to play the game on a DEC VT320 hardware terminal for a mor
 
 For more context, read the [accompanying blog post](https://www.eigenbahn.com/2020/02/22/ai-dungeon-cli).
 
-![AI Dungeon on a VT320](https://www.eigenbahn.com/assets/img/ai-dungeon-vt320.jpg**
+![AI Dungeon on a VT320](https://www.eigenbahn.com/assets/img/ai-dungeon-vt320.jpg)
 
 **WARNING:** As of writing the this client [is not working anymore](https://github.com/Eigenbahn/ai-dungeon-cli/issues/29#issuecomment-722294824). This seems to be associated with API changes necessary for the introduction of the stamina system. We'll eventually adapt to those new changes and if you're handy with python you can help speed things up.
 
